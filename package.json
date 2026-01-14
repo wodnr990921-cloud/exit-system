@@ -43,6 +43,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide-react": "^0.562.0",
+        "openai": "^6.16.0",
         "puppeteer": "^24.35.0",
         "react-hook-form": "^7.71.0",
         "react-zoom-pan-pinch": "^3.7.0",
