@@ -280,9 +280,16 @@ export default function MembersClient() {
   }
 
   const handleCustomerClick = async (customer: Customer) => {
+    console.log("회원 클릭:", customer.name, customer.id)
     setSelectedCustomer(customer)
     setSearchQuery(`${customer.member_number} - ${customer.name}`)
-    await loadCustomerTasks(customer.id)
+    console.log("티켓 로딩 시작...")
+    try {
+      await loadCustomerTasks(customer.id)
+      console.log("티켓 로딩 완료")
+    } catch (error) {
+      console.error("티켓 로딩 실패:", error)
+    }
   }
 
   const handleCustomerRowClick = async (customer: Customer) => {
@@ -742,6 +749,7 @@ export default function MembersClient() {
         {/* 회원 상세 정보 */}
         {selectedCustomer && (
           <>
+            {console.log("상세 정보 렌더링:", selectedCustomer.name)}
             {/* 플래그 섹션 */}
             {selectedCustomer.flags && selectedCustomer.flags.length > 0 && (
               <Card className="border-red-300 dark:border-red-800 shadow-sm bg-red-50/50 dark:bg-red-950/20">
