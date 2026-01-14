@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import SportsOpsClient from "./sports-ops-client"
+import SportsDataClient from "./sports-data-client"
 
 export default async function SportsPage() {
   const supabase = await createClient()
@@ -20,7 +20,7 @@ export default async function SportsPage() {
     redirect("/dashboard")
   }
 
-  return <SportsOpsClient />
+  return <SportsDataClient />
 }
 
 
