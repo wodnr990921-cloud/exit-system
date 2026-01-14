@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Download, CheckCircle, XCircle, Calendar, RefreshCw } from "lucide-react"
+import { Download, CheckCircle, XCircle, Calendar, RefreshCw, Printer } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Game {
@@ -100,9 +100,11 @@ export default function SportsOpsClient() {
   const [editScore, setEditScore] = useState("")
   const [selectedLeague, setSelectedLeague] = useState("kbo")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
   const [showAutoSettleDialog, setShowAutoSettleDialog] = useState(false)
   const [autoSettleResult, setAutoSettleResult] = useState<any>(null)
   const [settlingGames, setSettlingGames] = useState(false)
+  const [filterMode, setFilterMode] = useState<"all" | "date" | "month">("all")
 
   useEffect(() => {
     loadAllData()
@@ -511,6 +513,156 @@ export default function SportsOpsClient() {
     await handleCrawlSchedule(selectedLeague)
   }
 
+  // 날짜/월별 필터링
+  const getFilteredGames = (gamesList: Game[]) => {
+    if (filterMode === "date") {
+      return gamesList.filter((game) => game.game_date === selectedDate)
+    } else if (filterMode === "month") {
+      return gamesList.filter((game) => game.game_date?.startsWith(selectedMonth))
+    }
+    return gamesList
+  }
+
+  // 일정표 출력
+  const handlePrintSchedule = () => {
+    const filteredGames = getFilteredGames(scheduledGames)
+    
+    if (filteredGames.length === 0) {
+      toast({
+        title: "출력할 경기가 없습니다",
+        description: "선택한 기간에 예정된 경기가 없습니다.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
+
+    const periodText = 
+      filterMode === "date" ? selectedDate :
+      filterMode === "month" ? `${selectedMonth} 월간` :
+      "전체"
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>경기 일정표 - ${periodText}</title>
+        <meta charset="utf-8">
+        <style>
+          @media print {
+            @page { margin: 20mm; }
+          }
+          body {
+            font-family: 'Malgun Gothic', sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+          }
+          h1 {
+            text-align: center;
+            color: #1a1a1a;
+            border-bottom: 3px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+          }
+          .meta {
+            text-align: right;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          th {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+          }
+          td {
+            border: 1px solid #ddd;
+            padding: 10px 8px;
+            text-align: center;
+            font-size: 13px;
+          }
+          .league-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+          }
+          .vs {
+            font-weight: bold;
+            color: #666;
+            margin: 0 5px;
+          }
+          .footer {
+            text-align: center;
+            color: #999;
+            margin-top: 30px;
+            font-size: 12px;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>🏆 경기 일정표 (${periodText})</h1>
+        <div class="meta">
+          출력일시: ${new Date().toLocaleString("ko-KR")}<br>
+          총 ${filteredGames.length}경기
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 10%">No.</th>
+              <th style="width: 15%">리그</th>
+              <th style="width: 20%">일시</th>
+              <th style="width: 35%">대진</th>
+              <th style="width: 20%">장소</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredGames.map((game, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td><span class="league-badge">${game.league || "-"}</span></td>
+                <td>${game.game_date || "-"}</td>
+                <td>
+                  ${game.home_team || "홈"} 
+                  <span class="vs">vs</span> 
+                  ${game.away_team || "원정"}
+                </td>
+                <td>${game.location || "-"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <div class="footer">
+          Exit System - Sports Management
+        </div>
+        <script>
+          window.onload = () => {
+            window.print();
+            setTimeout(() => window.close(), 100);
+          }
+        </script>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -530,7 +682,8 @@ export default function SportsOpsClient() {
               </Badge>
             )}
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
+            {/* 리그 선택 */}
             <Select value={selectedLeague} onValueChange={setSelectedLeague}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="리그 선택" />
@@ -544,6 +697,44 @@ export default function SportsOpsClient() {
                 <SelectItem value="nba">NBA</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+
+            {/* 필터 모드 선택 */}
+            <Select value={filterMode} onValueChange={(v: any) => setFilterMode(v)}>
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="date">날짜별</SelectItem>
+                <SelectItem value="month">월별</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* 날짜 선택 (날짜별 필터 활성화 시) */}
+            {filterMode === "date" && (
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-40"
+              />
+            )}
+
+            {/* 월 선택 (월별 필터 활성화 시) */}
+            {filterMode === "month" && (
+              <Input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-40"
+              />
+            )}
+
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+
+            {/* 크롤링 버튼 */}
             <Button
               variant="outline"
               size="sm"
@@ -564,6 +755,21 @@ export default function SportsOpsClient() {
               <Download className="w-4 h-4 mr-1" />
               {crawling ? "크롤링 중..." : "결과"}
             </Button>
+
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+
+            {/* 출력 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrintSchedule}
+              className="border-purple-300 dark:border-purple-700"
+            >
+              <Printer className="w-4 h-4 mr-1" />
+              출력
+            </Button>
+
+            {/* 새로고침 */}
             <Button
               variant="ghost"
               size="sm"
@@ -768,15 +974,35 @@ export default function SportsOpsClient() {
       <TabsContent value="schedule" className="space-y-4">
         <Card className="border-gray-200 dark:border-gray-800 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">예정된 경기 일정</CardTitle>
-            <CardDescription>향후 예정된 경기 목록</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold">예정된 경기 일정</CardTitle>
+                <CardDescription>
+                  {filterMode === "all" && "전체 예정 경기"}
+                  {filterMode === "date" && `${selectedDate} 예정 경기`}
+                  {filterMode === "month" && `${selectedMonth} 월간 예정 경기`}
+                  {" "}({getFilteredGames(scheduledGames).length}건)
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintSchedule}
+                className="border-purple-300 dark:border-purple-700"
+              >
+                <Printer className="w-4 h-4 mr-1" />
+                일정표 출력
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="text-center p-8 text-gray-500 dark:text-gray-400">로딩 중...</div>
-            ) : scheduledGames.length === 0 ? (
+            ) : getFilteredGames(scheduledGames).length === 0 ? (
               <div className="text-center p-8 text-gray-500 dark:text-gray-400">
-                예정된 경기가 없습니다.
+                {filterMode === "all" 
+                  ? "예정된 경기가 없습니다."
+                  : "선택한 기간에 예정된 경기가 없습니다."}
               </div>
             ) : (
               <Table>
@@ -790,7 +1016,7 @@ export default function SportsOpsClient() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {scheduledGames.map((game) => (
+                  {getFilteredGames(scheduledGames).map((game) => (
                     <TableRow key={game.id}>
                       <TableCell>
                         <Badge variant="outline">{game.league || "KBO"}</Badge>
