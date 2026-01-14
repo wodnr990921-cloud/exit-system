@@ -5,11 +5,11 @@ import { UserRole } from '@/types'
 export function usePermissions() {
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     async function fetchUserRole() {
       try {
+        const supabase = createClient()
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -33,7 +33,7 @@ export function usePermissions() {
     }
 
     fetchUserRole()
-  }, [supabase])
+  }, [])
 
   const isAdmin = () => role === 'admin' || role === 'ceo'
   const isOperator = () => role === 'operator' || isAdmin()
