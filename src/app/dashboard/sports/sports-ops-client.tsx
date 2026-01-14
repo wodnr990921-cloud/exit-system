@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Download, CheckCircle, XCircle, Calendar, RefreshCw, Printer } from "lucide-react"
+import { Download, CheckCircle, XCircle, Calendar, RefreshCw, Printer, Camera, FileImage } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Game {
@@ -105,6 +105,8 @@ export default function SportsOpsClient() {
   const [autoSettleResult, setAutoSettleResult] = useState<any>(null)
   const [settlingGames, setSettlingGames] = useState(false)
   const [filterMode, setFilterMode] = useState<"all" | "date" | "month">("all")
+  const [showBetSlipDialog, setShowBetSlipDialog] = useState(false)
+  const [betSlipGame, setBetSlipGame] = useState<Game | null>(null)
 
   useEffect(() => {
     loadAllData()
@@ -663,6 +665,337 @@ export default function SportsOpsClient() {
     printWindow.document.close()
   }
 
+  // 배팅 내역 제작 (캡쳐용)
+  const handleCreateBetSlip = (game: Game) => {
+    setBetSlipGame(game)
+    setShowBetSlipDialog(true)
+  }
+
+  const handleCaptureBetSlip = () => {
+    const betSlipElement = document.getElementById("bet-slip-capture")
+    if (!betSlipElement) return
+
+    // html2canvas 라이브러리 대신 새 창으로 열어서 캡쳐하도록 안내
+    const captureWindow = window.open("", "_blank", "width=420,height=800")
+    if (!captureWindow) {
+      toast({
+        title: "팝업 차단됨",
+        description: "브라우저 팝업 차단을 해제해주세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const betSlipContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>배팅 내역</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .bet-slip {
+            width: 380px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+          }
+          .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+          }
+          .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+          }
+          .header .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+          }
+          .content {
+            padding: 20px;
+          }
+          .section {
+            margin-bottom: 20px;
+          }
+          .section-title {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            font-weight: 600;
+          }
+          .match-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+          }
+          .league-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 10px;
+          }
+          .teams {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 12px 0;
+          }
+          .team {
+            text-align: center;
+            flex: 1;
+          }
+          .team-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+          }
+          .team-odds {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 600;
+          }
+          .vs {
+            font-size: 12px;
+            color: #999;
+            font-weight: 600;
+            padding: 0 15px;
+          }
+          .match-date {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+          }
+          .bet-details {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+          }
+          .bet-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+          }
+          .bet-row:last-child {
+            border-bottom: none;
+            padding-top: 12px;
+            margin-top: 8px;
+            border-top: 2px solid #667eea;
+          }
+          .bet-label {
+            font-size: 13px;
+            color: #666;
+          }
+          .bet-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+          }
+          .bet-value.highlight {
+            color: #667eea;
+            font-size: 18px;
+          }
+          .bets-list {
+            max-height: 200px;
+            overflow-y: auto;
+          }
+          .bet-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid #667eea;
+          }
+          .bet-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+          }
+          .bet-ticket {
+            font-size: 11px;
+            color: #999;
+            font-weight: 600;
+          }
+          .bet-amount {
+            font-size: 14px;
+            font-weight: 700;
+            color: #667eea;
+          }
+          .bet-member {
+            font-size: 12px;
+            color: #666;
+          }
+          .bet-choice {
+            display: inline-block;
+            background: #e7f3ff;
+            color: #667eea;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+          }
+          .footer {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+          }
+          .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 5px;
+          }
+          .barcode {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(90deg, 
+              #000 0%, #000 10%, transparent 10%, transparent 15%,
+              #000 15%, #000 20%, transparent 20%, transparent 30%,
+              #000 30%, #000 35%, transparent 35%, transparent 40%,
+              #000 40%, #000 50%, transparent 50%, transparent 55%,
+              #000 55%, #000 60%, transparent 60%, transparent 70%,
+              #000 70%, #000 80%, transparent 80%, transparent 85%,
+              #000 85%, #000 90%, transparent 90%, transparent 100%
+            );
+            margin: 10px 0;
+          }
+          .notice {
+            font-size: 10px;
+            color: #999;
+            line-height: 1.4;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="bet-slip" id="capture-target">
+          <div class="header">
+            <h1>🎯 배팅 내역서</h1>
+            <div class="subtitle">EXIT SPORTS BETTING</div>
+          </div>
+          
+          <div class="content">
+            <!-- 경기 정보 -->
+            <div class="section">
+              <div class="section-title">Match Information</div>
+              <div class="match-info">
+                <span class="league-badge">${betSlipGame?.league || "KBO"}</span>
+                <div class="teams">
+                  <div class="team">
+                    <div class="team-name">${betSlipGame?.home_team || "홈팀"}</div>
+                    <div class="team-odds">2.15</div>
+                  </div>
+                  <div class="vs">VS</div>
+                  <div class="team">
+                    <div class="team-name">${betSlipGame?.away_team || "원정팀"}</div>
+                    <div class="team-odds">1.85</div>
+                  </div>
+                </div>
+                <div class="match-date">
+                  📅 ${betSlipGame?.game_date ? new Date(betSlipGame.game_date).toLocaleString("ko-KR") : "-"}
+                </div>
+              </div>
+            </div>
+
+            <!-- 배팅 통계 -->
+            <div class="section">
+              <div class="section-title">Betting Summary</div>
+              <div class="bet-details">
+                <div class="bet-row">
+                  <span class="bet-label">총 배팅 건수</span>
+                  <span class="bet-value">${betSlipGame?.bet_count || 0}건</span>
+                </div>
+                <div class="bet-row">
+                  <span class="bet-label">총 배팅액</span>
+                  <span class="bet-value">${formatNumber(betSlipGame?.total_bets || 0)}P</span>
+                </div>
+                <div class="bet-row">
+                  <span class="bet-label">예상 당첨금</span>
+                  <span class="bet-value highlight">${formatNumber(betSlipGame?.total_risk || 0)}P</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 배팅 목록 -->
+            <div class="section">
+              <div class="section-title">Bet Details (${betSlipGame?.items?.length || 0})</div>
+              <div class="bets-list">
+                ${betSlipGame?.items?.slice(0, 5).map((item, idx) => `
+                  <div class="bet-item">
+                    <div class="bet-item-header">
+                      <span class="bet-ticket">#${item.ticket_no || `BET-${idx + 1}`}</span>
+                      <span class="bet-amount">${formatNumber(item.amount)}P</span>
+                    </div>
+                    <div class="bet-member">
+                      ${item.customer?.name || "회원"} (${item.customer?.member_number || "-"})
+                      <span class="bet-choice">${item.choice}</span>
+                    </div>
+                  </div>
+                `).join("") || "<div style='text-align: center; color: #999; padding: 20px;'>배팅 내역이 없습니다</div>"}
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <div class="timestamp">발행일시: ${new Date().toLocaleString("ko-KR")}</div>
+            <div class="barcode"></div>
+            <div class="notice">
+              본 내역서는 온라인 스포츠 배팅 시스템에서 생성되었습니다.<br>
+              EXIT SYSTEM © 2026 All Rights Reserved
+            </div>
+          </div>
+        </div>
+
+        <script>
+          // 페이지 로드 후 안내 메시지
+          setTimeout(() => {
+            alert("⚡ 화면 캡쳐 방법:\\n\\n1. Windows: Win + Shift + S\\n2. Mac: Cmd + Shift + 4\\n3. 또는 스크린샷 도구 사용");
+          }, 500);
+        </script>
+      </body>
+      </html>
+    `
+
+    captureWindow.document.write(betSlipContent)
+    captureWindow.document.close()
+
+    toast({
+      title: "배팅 내역 생성 완료",
+      description: "새 창에서 화면을 캡쳐하세요.",
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -689,12 +1022,15 @@ export default function SportsOpsClient() {
                 <SelectValue placeholder="리그 선택" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="kbo">KBO</SelectItem>
-                <SelectItem value="mlb">MLB</SelectItem>
-                <SelectItem value="kleague">K리그</SelectItem>
-                <SelectItem value="epl">EPL</SelectItem>
-                <SelectItem value="kbl">KBL</SelectItem>
-                <SelectItem value="nba">NBA</SelectItem>
+                <SelectItem value="kbo">⚾ KBO</SelectItem>
+                <SelectItem value="kleague">⚽ K리그</SelectItem>
+                <SelectItem value="kbl">🏀 KBL(남)</SelectItem>
+                <SelectItem value="wkbl">🏀 WKBL(여)</SelectItem>
+                <SelectItem value="vleague-m">🏐 V리그(남)</SelectItem>
+                <SelectItem value="vleague-w">🏐 V리그(여)</SelectItem>
+                <SelectItem value="mlb">⚾ MLB</SelectItem>
+                <SelectItem value="nba">🏀 NBA</SelectItem>
+                <SelectItem value="epl">⚽ EPL</SelectItem>
               </SelectContent>
             </Select>
 
@@ -838,16 +1174,29 @@ export default function SportsOpsClient() {
                             <div className="text-sm text-gray-500 dark:text-gray-400">배팅 인원수</div>
                             <div className="text-lg font-semibold">{game.bet_count || game.items?.length || 0}건</div>
                           </div>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleGameClick(game)
-                        }}
-                      >
-                        상세 보기
-                      </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleGameClick(game)
+                              }}
+                            >
+                              상세 보기
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCreateBetSlip(game)
+                              }}
+                            >
+                              <Camera className="w-4 h-4" />
+                            </Button>
+                          </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -1303,6 +1652,74 @@ export default function SportsOpsClient() {
             )}
             <DialogFooter>
               <Button onClick={() => setShowAutoSettleDialog(false)}>확인</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 배팅 내역 제작 Dialog */}
+        <Dialog open={showBetSlipDialog} onOpenChange={setShowBetSlipDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                배팅 내역 제작 (캡쳐용)
+              </DialogTitle>
+              <DialogDescription>
+                온라인 스포츠 사이트 스타일의 배팅 내역서를 생성합니다
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              {betSlipGame && (
+                <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">경기</span>
+                    <span className="font-semibold">{formatGameName(betSlipGame)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">리그</span>
+                    <Badge variant="outline">{betSlipGame.league || "KBO"}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">배팅 건수</span>
+                    <span className="font-semibold">{betSlipGame.bet_count || 0}건</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">총 배팅액</span>
+                    <span className="font-semibold text-blue-600">{formatNumber(betSlipGame.total_bets || 0)}P</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-2">
+                  <FileImage className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <div className="flex-1 text-sm text-blue-900 dark:text-blue-100">
+                    <p className="font-semibold mb-1">💡 사용 방법</p>
+                    <ol className="list-decimal list-inside space-y-1 text-blue-800 dark:text-blue-200">
+                      <li>아래 버튼을 클릭하여 새 창 열기</li>
+                      <li>화면 캡쳐 도구 사용 (Win+Shift+S 또는 Cmd+Shift+4)</li>
+                      <li>필요한 영역만 캡쳐하여 저장</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowBetSlipDialog(false)}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                onClick={handleCaptureBetSlip}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                배팅 내역 생성
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

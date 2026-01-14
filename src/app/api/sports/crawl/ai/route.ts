@@ -250,6 +250,9 @@ export async function GET(request: NextRequest) {
       { name: "KBO", url: "https://sports.news.naver.com/kbaseball/schedule/index" },
       { name: "K리그", url: "https://sports.daum.net/schedule/kleague" },
       { name: "KBL", url: "https://sports.news.naver.com/basketball/schedule/index" },
+      { name: "V-리그(남)", url: "https://sports.news.naver.com/volleyball/schedule/index?category=kovo&gender=m" },
+      { name: "V-리그(여)", url: "https://sports.news.naver.com/volleyball/schedule/index?category=kovo&gender=w" },
+      { name: "WKBL", url: "https://sports.news.naver.com/wbasketball/schedule/index" },
       
       // 해외 축구
       { name: "EPL", url: "https://www.espn.com/soccer/schedule/_/league/eng.1" },
@@ -266,7 +269,7 @@ export async function GET(request: NextRequest) {
       { name: "NBA", url: "https://www.espn.com/nba/schedule" },
     ]
 
-    console.log(`🚀 전체 리그 크롤링 시작: ${leagues.length}개 리그`)
+    console.log(`🚀 전체 리그 크롤링 시작: ${leagues.length}개 리그 (국내 6개 + 해외 9개)`)
 
     // 병렬 크롤링으로 속도 향상
     const promises = leagues.map(async ({ name, url }) => {
