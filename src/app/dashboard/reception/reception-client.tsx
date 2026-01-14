@@ -651,7 +651,7 @@ export default function ReceptionClient() {
                   variant="outline"
                   onClick={() => {
                     setShowNewMemberDialog(false)
-                    setNewMemberForm({ name: "", institution: "", prison_number: "", phone: "" })
+                    setNewMemberForm({ name: "", institution: "", prison_number: "", mailbox_address: "" })
                   }}
                   disabled={creatingMember}
                 >
