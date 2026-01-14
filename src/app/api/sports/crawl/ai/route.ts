@@ -150,6 +150,96 @@ HTML에서 경기 정보를 찾아서 JSON 형식으로 반환하세요.
 }
 
 /**
+ * PUT: 경기 결과 크롤링 (AI 기반)
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { url, league, gameId } = await request.json()
+
+    console.log(`AI 결과 크롤링 시작: ${league} - ${gameId}`)
+
+    // 1. HTML 가져오기
+    const htmlResponse = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    })
+    const html = await htmlResponse.text()
+
+    // 2. AI에게 결과 분석 요청
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `당신은 스포츠 경기 결과를 추출하는 전문가입니다.
+HTML에서 경기 결과를 찾아서 JSON 형식으로 반환하세요.
+
+결과는 반드시 다음 형식의 JSON으로 반환하세요:
+{
+  "game": {
+    "home_team": "팀명",
+    "away_team": "팀명",
+    "home_score": 5,
+    "away_score": 3,
+    "status": "finished",
+    "final_date": "2026-01-15T20:30:00"
+  }
+}`,
+        },
+        {
+          role: "user",
+          content: `다음 HTML에서 경기 결과를 추출하세요:\n\n${html.substring(0, 50000)}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    })
+
+    const result = JSON.parse(completion.choices[0].message.content || "{}")
+    
+    if (!result.game) {
+      return NextResponse.json({
+        success: false,
+        message: "경기 결과를 찾을 수 없습니다.",
+      })
+    }
+
+    // 3. 데이터베이스 업데이트
+    const { createClient } = await import("@/lib/supabase/server")
+    const supabase = await createClient()
+
+    const { error } = await supabase
+      .from("sports_games")
+      .update({
+        home_score: result.game.home_score,
+        away_score: result.game.away_score,
+        status: "finished",
+        final_date: result.game.final_date || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", gameId)
+
+    if (error) throw error
+
+    return NextResponse.json({
+      success: true,
+      message: "경기 결과 업데이트 완료",
+      game: result.game,
+    })
+  } catch (error: any) {
+    console.error("AI 결과 크롤링 오류:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message,
+      },
+      { status: 500 }
+    )
+  }
+}
+
+/**
  * GET: 여러 사이트에서 크롤링
  */
 export async function GET(request: NextRequest) {
