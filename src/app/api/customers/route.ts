@@ -65,12 +65,18 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    console.log("=== POST /api/customers 시작 ===")
     const { hasAccess, user } = await checkStaffAccess()
+    console.log("권한 체크 결과:", { hasAccess, userId: user?.id })
+    
     if (!hasAccess || !user) {
+      console.log("권한 없음 - 403 반환")
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
     }
 
-    const { name, institution, prison_number, mailbox_address } = await request.json()
+    const body = await request.json()
+    console.log("요청 본문:", body)
+    const { name, institution, prison_number, mailbox_address } = body
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "이름은 필수입니다." }, { status: 400 })
@@ -111,8 +117,9 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error("Error inserting customer:", insertError)
+      console.error("상세 에러:", JSON.stringify(insertError, null, 2))
       return NextResponse.json(
-        { error: "회원 등록에 실패했습니다.", details: insertError.message },
+        { error: "회원 등록에 실패했습니다.", details: insertError.message, code: insertError.code },
         { status: 500 }
       )
     }
@@ -133,8 +140,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error("Customer creation error:", error)
+    console.error("에러 스택:", error.stack)
     return NextResponse.json(
-      { error: "서버 오류가 발생했습니다.", details: error.message },
+      { error: "서버 오류가 발생했습니다.", details: error.message, stack: error.stack },
       { status: 500 }
     )
   }
