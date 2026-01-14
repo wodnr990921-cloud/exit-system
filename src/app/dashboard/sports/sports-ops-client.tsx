@@ -204,7 +204,12 @@ export default function SportsOpsClient() {
   const handleCrawlSchedule = async (league: string = "kbo") => {
     setCrawling(true)
     try {
-      // AI 크롤링 사용 (다중 사이트 자동)
+      // AI 크롤링 사용 (전체 리그 자동)
+      toast({
+        title: "🚀 전체 리그 크롤링 시작",
+        description: "KBO, K리그, EPL, NBA, MLB 등 모든 리그를 크롤링합니다...",
+      })
+
       const response = await fetch("/api/sports/crawl/ai", {
         method: "GET",
       })
@@ -212,9 +217,10 @@ export default function SportsOpsClient() {
       const data = await response.json()
 
       if (data.success) {
+        const { stats } = data
         toast({
-          title: "일정 가져오기 성공",
-          description: data.message,
+          title: "✅ 전체 일정 크롤링 완료",
+          description: `${stats?.successful || 0}개 리그 성공, ${stats?.totalSaved || 0}건 경기 저장`,
         })
         await loadAllData()
       } else {

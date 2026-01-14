@@ -240,62 +240,67 @@ HTML에서 경기 결과를 찾아서 JSON 형식으로 반환하세요.
 }
 
 /**
- * GET: 여러 사이트에서 크롤링
+ * GET: 여러 사이트에서 크롤링 - 전체 리그 자동 크롤링
  */
 export async function GET(request: NextRequest) {
   try {
     const results = []
+    const leagues = [
+      // 국내 리그
+      { name: "KBO", url: "https://sports.news.naver.com/kbaseball/schedule/index" },
+      { name: "K리그", url: "https://sports.daum.net/schedule/kleague" },
+      { name: "KBL", url: "https://sports.news.naver.com/basketball/schedule/index" },
+      
+      // 해외 축구
+      { name: "EPL", url: "https://www.espn.com/soccer/schedule/_/league/eng.1" },
+      { name: "라리가", url: "https://www.espn.com/soccer/schedule/_/league/esp.1" },
+      { name: "분데스리가", url: "https://www.espn.com/soccer/schedule/_/league/ger.1" },
+      { name: "세리에A", url: "https://www.espn.com/soccer/schedule/_/league/ita.1" },
+      { name: "리그앙", url: "https://www.espn.com/soccer/schedule/_/league/fra.1" },
+      
+      // 해외 야구
+      { name: "MLB", url: "https://www.espn.com/mlb/schedule" },
+      { name: "NPB", url: "https://sports.yahoo.co.jp/npb/schedule" },
+      
+      // 해외 농구
+      { name: "NBA", url: "https://www.espn.com/nba/schedule" },
+    ]
 
-    // 1. KBO (네이버 스포츠)
-    const kboResponse = await fetch(`${request.nextUrl.origin}/api/sports/crawl/ai`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: "https://sports.news.naver.com/kbaseball/schedule/index",
-        league: "KBO",
-      }),
+    console.log(`🚀 전체 리그 크롤링 시작: ${leagues.length}개 리그`)
+
+    // 병렬 크롤링으로 속도 향상
+    const promises = leagues.map(async ({ name, url }) => {
+      try {
+        const response = await fetch(`${request.nextUrl.origin}/api/sports/crawl/ai`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, league: name }),
+        })
+        const data = await response.json()
+        console.log(`✅ ${name} 크롤링 완료: ${data.saved || 0}건`)
+        return { league: name, ...data }
+      } catch (error: any) {
+        console.error(`❌ ${name} 크롤링 실패:`, error.message)
+        return { league: name, success: false, error: error.message }
+      }
     })
-    const kboData = await kboResponse.json()
-    results.push({ league: "KBO", ...kboData })
 
-    // 2. K리그 (다음 스포츠 - 대체 소스)
-    try {
-      const kleagueResponse = await fetch(`${request.nextUrl.origin}/api/sports/crawl/ai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: "https://sports.daum.net/schedule/kleague",
-          league: "K리그",
-        }),
-      })
-      const kleagueData = await kleagueResponse.json()
-      results.push({ league: "K리그", ...kleagueData })
-    } catch (error) {
-      console.error("K리그 크롤링 실패:", error)
-    }
+    const allResults = await Promise.all(promises)
+    results.push(...allResults)
 
-    // 3. EPL (ESPN - 영어 소스)
-    try {
-      const eplResponse = await fetch(`${request.nextUrl.origin}/api/sports/crawl/ai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: "https://www.espn.com/soccer/schedule/_/league/eng.1",
-          league: "EPL",
-        }),
-      })
-      const eplData = await eplResponse.json()
-      results.push({ league: "EPL", ...eplData })
-    } catch (error) {
-      console.error("EPL 크롤링 실패:", error)
-    }
+    // 성공/실패 집계
+    const successful = results.filter((r) => r.success).length
+    const failed = results.filter((r) => !r.success).length
+    const totalSaved = results.reduce((sum, r) => sum + (r.saved || 0), 0)
 
     return NextResponse.json({
       success: true,
-      message: "다중 사이트 AI 크롤링 완료",
+      message: `전체 크롤링 완료: ${successful}개 성공, ${failed}개 실패, 총 ${totalSaved}건 저장`,
+      stats: { successful, failed, totalSaved, total: leagues.length },
       results,
     })
   } catch (error: any) {
+    console.error("전체 크롤링 오류:", error)
     return NextResponse.json(
       {
         success: false,
