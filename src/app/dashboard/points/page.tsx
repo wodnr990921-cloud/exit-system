@@ -11,3 +11,6 @@ export default async function PointsPage() {
 
   return <PointsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

@@ -11,3 +11,6 @@ export default async function DailyRepliesPage() {
 
   return <DailyRepliesClient />
 }
+
+
+export const dynamic = 'force-dynamic'

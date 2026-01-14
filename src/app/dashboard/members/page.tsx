@@ -21,3 +21,6 @@ export default function MembersPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

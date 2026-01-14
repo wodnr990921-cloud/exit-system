@@ -70,7 +70,14 @@ export default function PrintClient() {
         .order("closed_at", { ascending: true })
 
       if (error) throw error
-      setTasks(data || [])
+      
+      // 데이터 변환: customer가 배열인 경우 첫 번째 요소 사용
+      const transformedData = (data || []).map((task: any) => ({
+        ...task,
+        customer: Array.isArray(task.customer) ? task.customer[0] : task.customer,
+      }))
+      
+      setTasks(transformedData)
     } catch (error: any) {
       console.error("Error loading closed tasks:", error)
     } finally {

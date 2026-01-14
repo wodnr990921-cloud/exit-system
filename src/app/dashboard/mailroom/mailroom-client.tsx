@@ -580,7 +580,11 @@ export default function MailroomClient() {
 
   const updatePurchaseItem = (index: number, field: "description" | "amount", value: any) => {
     const updated = [...purchaseItems]
-    updated[index][field] = value
+    if (field === "description") {
+      updated[index].description = value
+    } else {
+      updated[index].amount = value
+    }
     setPurchaseItems(updated)
   }
 

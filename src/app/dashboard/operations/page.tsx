@@ -21,3 +21,6 @@ export default function OperationsPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

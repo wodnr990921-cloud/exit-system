@@ -13,3 +13,6 @@ export default function PointsManagementPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

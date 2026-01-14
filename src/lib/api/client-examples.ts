@@ -274,7 +274,7 @@ export async function exampleCleanupOldData() {
  */
 export async function examplePointLiabilityDashboard() {
   try {
-    const data = await getPointLiability()
+    const data: any = await getPointLiability()
 
     console.log("=== 포인트 부채 현황 ===")
     console.log(`총 부채: ${data.liability.total.toLocaleString()}원`)
@@ -284,14 +284,14 @@ export async function examplePointLiabilityDashboard() {
     console.log(`평균: ${data.liability.averagePerCustomer.toLocaleString()}원/명`)
 
     console.log("\n=== 상위 고객 ===")
-    data.topCustomers.forEach((customer, index) => {
+    data.topCustomers.forEach((customer: any, index: number) => {
       console.log(
         `${index + 1}. ${customer.name}: ${customer.totalPoints.toLocaleString()}원`
       )
     })
 
     // 리포트 생성
-    const report = await generatePointLiabilityReport({
+    const report: any = await generatePointLiabilityReport({
       format: "json",
       includeCustomers: true,
     })
@@ -308,11 +308,11 @@ export async function examplePointLiabilityDashboard() {
 export async function exampleCrawlSportsGames() {
   try {
     // 1. 지원 리그 확인
-    const leagues = await getSupportedLeagues()
+    const leagues: any = await getSupportedLeagues()
     console.log("Supported leagues:", leagues)
 
     // 2. KBO 일정 크롤링
-    const kboSchedule = await crawlNaverSports({
+    const kboSchedule: any = await crawlNaverSports({
       league: "kbo",
       type: "schedule",
       saveToDb: true,
@@ -324,7 +324,7 @@ export async function exampleCrawlSportsGames() {
     console.log(`${kboSchedule.stats.updated}개 업데이트`)
 
     // 3. MLB 결과 크롤링
-    const mlbResults = await crawlNaverSports({
+    const mlbResults: any = await crawlNaverSports({
       league: "mlb",
       type: "result",
       saveToDb: true,
@@ -407,7 +407,7 @@ export async function safeApiCall<T>(
   errorCallback?: (error: string) => void
 ): Promise<T | null> {
   try {
-    const result = await apiFunction()
+    const result: any = await apiFunction()
 
     if ("error" in result) {
       const errorMessage = handleApiError(result)
@@ -427,7 +427,7 @@ export async function safeApiCall<T>(
  * Usage example:
  */
 export async function exampleSafeApiCall() {
-  const liability = await safeApiCall(
+  const liability: any = await safeApiCall(
     () => getPointLiability(),
     (error) => alert(`에러: ${error}`)
   )

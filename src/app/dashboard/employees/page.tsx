@@ -21,3 +21,6 @@ export default async function EmployeesPage() {
 
   return <EmployeesClient />
 }
+
+
+export const dynamic = 'force-dynamic'

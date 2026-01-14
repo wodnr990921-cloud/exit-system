@@ -14,3 +14,6 @@ export default async function IntakePage() {
 
   return <IntakeClient />
 }
+
+
+export const dynamic = 'force-dynamic'

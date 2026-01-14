@@ -11,3 +11,6 @@ export default async function DocumentRetentionPage() {
 
   return <DocumentRetentionClient />
 }
+
+
+export const dynamic = 'force-dynamic'

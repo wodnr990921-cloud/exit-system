@@ -11,3 +11,6 @@ export default async function BankPage() {
 
   return <BankClient />
 }
+
+
+export const dynamic = 'force-dynamic'

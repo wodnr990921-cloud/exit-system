@@ -21,3 +21,6 @@ export default async function MailroomPage() {
 
   return <MailroomClient />
 }
+
+
+export const dynamic = 'force-dynamic'

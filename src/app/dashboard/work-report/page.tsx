@@ -21,3 +21,6 @@ export default function WorkReportPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

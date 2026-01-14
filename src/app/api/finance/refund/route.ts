@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "이미 환불된 아이템입니다." }, { status: 400 })
     }
 
-    const customerId = taskItem.tasks?.member_id
+    const tasks = Array.isArray(taskItem.tasks) ? taskItem.tasks[0] : taskItem.tasks
+    const customerId = tasks?.member_id
     if (!customerId) {
       return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 404 })
     }

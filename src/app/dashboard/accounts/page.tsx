@@ -14,3 +14,6 @@ export default async function AccountsPage() {
 
   return <AccountsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

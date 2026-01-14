@@ -12,3 +12,6 @@ export default function SettlementsPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

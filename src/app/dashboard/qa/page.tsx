@@ -21,3 +21,6 @@ export default function QAPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

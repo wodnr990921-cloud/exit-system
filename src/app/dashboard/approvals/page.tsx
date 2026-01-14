@@ -21,3 +21,6 @@ export default async function ApprovalsPage() {
 
   return <ApprovalsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

@@ -21,3 +21,5 @@ export default async function PrintPage() {
 
   return <PrintClient />
 }
+
+export const dynamic = 'force-dynamic'

@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "티켓을 찾을 수 없습니다." }, { status: 404 })
     }
 
-    const customer = task.customer
+    const customer = Array.isArray(task.customer) ? task.customer[0] : task.customer
     if (!customer) {
       return NextResponse.json({ error: "회원 정보를 찾을 수 없습니다." }, { status: 404 })
     }
@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 고객 잔액 정보
-    const generalBalance = customer.total_point_general || 0
-    const bettingBalance = customer.total_point_betting || 0
+    const generalBalance = (customer as any).total_point_general || 0
+    const bettingBalance = (customer as any).total_point_betting || 0
     const totalBalance = generalBalance + bettingBalance
 
     // 프롬프트 생성
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
 다음 정보를 바탕으로 따뜻하고 친절한 서신체로 답장을 작성해주세요.
 
 [회원 정보]
-- 이름: ${customer.name}님
+- 이름: ${(customer as any).name}님
 
 [처리 내역]
 ${itemsText || "처리된 내역이 없습니다."}

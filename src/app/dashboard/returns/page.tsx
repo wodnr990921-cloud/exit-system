@@ -11,3 +11,6 @@ export default async function ReturnsPage() {
 
   return <ReturnsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

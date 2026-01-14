@@ -14,3 +14,6 @@ export default async function LogisticsPage() {
 
   return <LogisticsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

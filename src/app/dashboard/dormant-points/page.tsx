@@ -11,3 +11,6 @@ export default async function DormantPointsPage() {
 
   return <DormantPointsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

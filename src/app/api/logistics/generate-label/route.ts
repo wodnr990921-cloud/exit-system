@@ -19,9 +19,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 오늘 날짜로 리셋 (필요시)
-    await supabase.rpc("reset_daily_sender_usage").catch(() => {
+    try {
+      await supabase.rpc("reset_daily_sender_usage")
+    } catch (error) {
       // 함수가 없으면 무시 (선택사항이므로)
-    })
+    }
 
     // 오늘 사용 횟수가 가장 적은 발송인 찾기
     const { data: senders, error: sendersError } = await supabase
@@ -160,10 +162,12 @@ export async function POST(request: NextRequest) {
       shipped_at: new Date().toISOString(),
     }))
 
-    await supabase.from("shipment_logs").insert(shipmentLogs).catch((error) => {
+    try {
+      await supabase.from("shipment_logs").insert(shipmentLogs)
+    } catch (error) {
       console.error("Error creating shipment logs:", error)
       // 로그 저장 실패해도 계속 진행
-    })
+    }
 
     // 라벨 정보 반환
     const labelData = {

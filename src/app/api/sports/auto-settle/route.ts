@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
         // 경기 결과 파싱 (예: "3:2" -> 홈팀 3점, 원정팀 2점)
         const resultScore = game.result_score || ""
-        const [homeScore, awayScore] = resultScore.split(":").map((s) => parseInt(s.trim()))
+        const [homeScore, awayScore] = resultScore.split(":").map((s: string) => parseInt(s.trim()))
 
         let winningTeam = null
         if (!isNaN(homeScore) && !isNaN(awayScore)) {
@@ -168,8 +168,10 @@ export async function POST(request: NextRequest) {
 
           const choice = details.choice || details.selected || ""
           const odds = parseFloat(details.odds || "1.0")
-          const customerId = item.tasks?.member_id
-          const customer = item.tasks?.customer
+          const tasks = Array.isArray(item.tasks) ? item.tasks[0] : item.tasks
+          const customerId = tasks?.member_id
+          const customerData = Array.isArray(tasks?.customer) ? tasks.customer[0] : tasks?.customer
+          const customer = customerData
 
           // 승패 판단
           let isWin = false

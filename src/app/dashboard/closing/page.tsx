@@ -21,3 +21,5 @@ export default async function ClosingPage() {
 
   return <ClosingClient />
 }
+
+export const dynamic = 'force-dynamic'

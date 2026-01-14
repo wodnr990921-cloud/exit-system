@@ -22,3 +22,6 @@ export default async function SportsPage() {
 
   return <SportsOpsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

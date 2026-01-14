@@ -11,3 +11,6 @@ export default async function BankTransactionsPage() {
 
   return <TransactionsClient />
 }
+
+
+export const dynamic = 'force-dynamic'

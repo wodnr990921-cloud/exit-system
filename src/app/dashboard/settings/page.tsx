@@ -11,19 +11,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, CheckCircle2, Save, Settings, Lock, FileText, Users, Key } from "lucide-react"
-import dynamic from "next/dynamic"
+import dynamicImport from "next/dynamic"
 
-const AuditLogsContent = dynamic(() => import("../audit-logs/audit-logs-client"), {
+const AuditLogsContent = dynamicImport(() => import("../audit-logs/audit-logs-client"), {
   loading: () => <div className="p-6">감사 로그 로딩 중...</div>,
   ssr: false,
 })
 
-const EmployeeManagementContent = dynamic(() => import("./employee-management-client"), {
+const EmployeeManagementContent = dynamicImport(() => import("./employee-management-client"), {
   loading: () => <div className="p-6">직원 관리 로딩 중...</div>,
   ssr: false,
 })
 
-const PasswordChangeContent = dynamic(() => import("./password-change-client"), {
+const PasswordChangeContent = dynamicImport(() => import("./password-change-client"), {
   loading: () => <div className="p-6">비밀번호 변경 로딩 중...</div>,
   ssr: false,
 })
@@ -298,3 +298,6 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

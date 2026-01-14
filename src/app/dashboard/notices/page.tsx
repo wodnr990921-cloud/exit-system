@@ -11,3 +11,6 @@ export default async function NoticesPage() {
 
   return <NoticesClient />
 }
+
+
+export const dynamic = 'force-dynamic'

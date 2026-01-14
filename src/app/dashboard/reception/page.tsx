@@ -14,3 +14,6 @@ export default async function ReceptionPage() {
 
   return <ReceptionClient />
 }
+
+
+export const dynamic = 'force-dynamic'

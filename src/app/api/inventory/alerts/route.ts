@@ -72,8 +72,8 @@ export async function GET(request: NextRequest) {
 
     // 심각도 순으로 정렬
     const sortedAlerts = alerts.sort((a: any, b: any) => {
-      const severityOrder = { critical: 0, warning: 1, info: 2 }
-      return severityOrder[a.severity] - severityOrder[b.severity]
+      const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 }
+      return (severityOrder[a.severity] || 999) - (severityOrder[b.severity] || 999)
     })
 
     return NextResponse.json({

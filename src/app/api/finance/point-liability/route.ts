@@ -139,16 +139,19 @@ export async function GET(request: NextRequest) {
         bettingPoints: c.total_point_betting || 0,
         totalPoints: (c.total_point_general || 0) + (c.total_point_betting || 0),
       })),
-      recentTransactions: recentTransactions?.map((t) => ({
-        id: t.id,
-        customerId: t.customer_id,
-        customerName: t.customers?.name,
-        customerCode: t.customers?.customer_code,
-        amount: t.amount,
-        pointType: t.point_type,
-        transactionType: t.transaction_type,
-        createdAt: t.created_at,
-      })),
+      recentTransactions: recentTransactions?.map((t) => {
+        const customer = Array.isArray(t.customers) ? t.customers[0] : t.customers
+        return {
+          id: t.id,
+          customerId: t.customer_id,
+          customerName: customer?.name,
+          customerCode: (customer as any)?.customer_code,
+          amount: t.amount,
+          pointType: t.point_type,
+          transactionType: t.transaction_type,
+          createdAt: t.created_at,
+        }
+      }),
       dailyStats: Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date)),
       generatedAt: new Date().toISOString(),
     })

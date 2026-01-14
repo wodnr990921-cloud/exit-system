@@ -14,3 +14,6 @@ export default async function DashboardPage() {
 
   return <DashboardClient />
 }
+
+
+export const dynamic = 'force-dynamic'

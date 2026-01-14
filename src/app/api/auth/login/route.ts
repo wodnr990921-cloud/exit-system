@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         
         // 기존 Auth 사용자 확인
         const { data: existingUsers } = await adminClient.auth.admin.listUsers()
-        const existingUser = existingUsers?.users.find(u => u.email === authEmail)
+        const existingUser = existingUsers?.users.find((u: any) => u.email === authEmail)
         
         if (!existingUser) {
           console.log("⚠️ Auth 계정 없음, 생성 중...")
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
         
         // Auth 계정 확인/생성
         const { data: existingUsers } = await adminClient.auth.admin.listUsers()
-        const existingUser = existingUsers?.users.find(u => u.email === authEmail)
+        const existingUser = existingUsers?.users.find((u: any) => u.email === authEmail)
         
         if (!existingUser) {
           await adminClient.auth.admin.createUser({
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
     
     // Auth 계정 확인/생성
     const { data: existingUsers } = await adminClient.auth.admin.listUsers()
-    const existingUser = existingUsers?.users.find(u => u.email === authEmail)
+    const existingUser = existingUsers?.users.find((u: any) => u.email === authEmail)
     
     if (!existingUser) {
       console.log("⚠️ Auth 계정 없음, 생성 중...")

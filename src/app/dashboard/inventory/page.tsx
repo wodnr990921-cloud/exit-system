@@ -12,3 +12,6 @@ export default function InventoryPage() {
     </Suspense>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

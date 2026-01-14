@@ -109,7 +109,14 @@ export default function ClosingClient() {
         .order("created_at", { ascending: false })
 
       if (error) throw error
-      setTasks(data || [])
+      
+      // 데이터 변환: customer가 배열인 경우 첫 번째 요소 사용
+      const transformedData = (data || []).map((task: any) => ({
+        ...task,
+        customer: Array.isArray(task.customer) ? task.customer[0] : task.customer,
+      }))
+      
+      setTasks(transformedData)
     } catch (error: any) {
       console.error("Error loading tasks:", error)
       setError("티켓 목록을 불러오는데 실패했습니다.")

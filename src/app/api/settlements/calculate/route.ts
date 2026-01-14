@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString())
 
-    const shippingCost = shippingRecords?.length * 4000 || 0 // 개당 4,000원 가정
+    const shippingCost = (shippingRecords?.length || 0) * 4000 // 개당 4,000원 가정
 
     // 5. 재고 소모품 비용
     const { data: inventoryUse } = await supabase

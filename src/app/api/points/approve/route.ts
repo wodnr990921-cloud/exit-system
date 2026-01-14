@@ -61,20 +61,23 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!pointError && pointTransaction && pointTransaction.customers) {
-      const customer = pointTransaction.customers
+      const customerData = Array.isArray(pointTransaction.customers) 
+        ? pointTransaction.customers[0] 
+        : pointTransaction.customers
       const customerId = pointTransaction.customer_id
-      const customerName = customer.name
+      const customerName = (customerData as any)?.name
 
       // 포인트 충전(charge) 승인 시 알림 생성
       if (pointTransaction.type === "charge") {
         // 입금 여부 확인 (depositor_name이 있으면 입금으로 간주, 또는 reason에 "입금" 포함)
-        const isDeposit = customer.depositor_name || (pointTransaction.reason && pointTransaction.reason.includes("입금"))
+        const depositorName = (customerData as any)?.depositor_name
+        const isDeposit = depositorName || (pointTransaction.reason && pointTransaction.reason.includes("입금"))
         
-        if (isDeposit && customer.depositor_name) {
+        if (isDeposit && depositorName) {
           await createDepositNotification(
             customerId,
             customerName,
-            customer.depositor_name,
+            depositorName,
             pointTransaction.amount,
             transactionId
           )

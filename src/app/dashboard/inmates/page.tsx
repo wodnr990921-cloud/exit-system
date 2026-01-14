@@ -11,3 +11,6 @@ export default async function InmatesPage() {
 
   return <InmatesClient />
 }
+
+
+export const dynamic = 'force-dynamic'

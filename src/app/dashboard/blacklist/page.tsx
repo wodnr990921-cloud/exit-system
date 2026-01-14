@@ -67,3 +67,6 @@ export default function BlacklistPage() {
     </div>
   )
 }
+
+
+export const dynamic = 'force-dynamic'

@@ -14,3 +14,6 @@ export default async function OcrPage() {
 
   return <OcrClient />
 }
+
+
+export const dynamic = 'force-dynamic'

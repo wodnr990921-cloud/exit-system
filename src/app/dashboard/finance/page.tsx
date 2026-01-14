@@ -22,3 +22,6 @@ export default async function FinancePage() {
 
   return <FinanceClient />
 }
+
+
+export const dynamic = 'force-dynamic'

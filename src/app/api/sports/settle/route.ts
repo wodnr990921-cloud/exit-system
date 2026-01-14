@@ -98,8 +98,10 @@ export async function POST(request: NextRequest) {
 
       const choice = details.choice || ""
       const odds = details.odds || 1.0
-      const customerId = item.tasks?.member_id
-      const customer = item.tasks?.customer
+      const tasks = Array.isArray(item.tasks) ? item.tasks[0] : item.tasks
+      const customerId = tasks?.member_id
+      const customerData = Array.isArray(tasks?.customer) ? tasks.customer[0] : tasks?.customer
+      const customer = customerData
 
       // 승패 판단
       const isWin = choice === result
@@ -127,10 +129,10 @@ export async function POST(request: NextRequest) {
 
         // 당첨 알림 생성
         if (customerId && customer?.name) {
-          const game = item.game
-          const gameName = game ? `${game.home_team} vs ${game.away_team}` : item.description || "경기"
-          const gameDate = game?.game_date
-            ? new Date(game.game_date).toLocaleDateString("ko-KR")
+          const gameData = Array.isArray(item.game) ? item.game[0] : item.game
+          const gameName = gameData ? `${(gameData as any).home_team} vs ${(gameData as any).away_team}` : item.description || "경기"
+          const gameDate = (gameData as any)?.game_date
+            ? new Date((gameData as any).game_date).toLocaleDateString("ko-KR")
             : new Date().toLocaleDateString("ko-KR")
 
           await createWinNotification(
