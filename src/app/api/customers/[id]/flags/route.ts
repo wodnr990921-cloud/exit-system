@@ -8,7 +8,7 @@ import { checkOperatorOrCEOAccess } from "@/lib/.cursorrules/permissions"
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { hasAccess } = await checkOperatorOrCEOAccess()
@@ -16,7 +16,8 @@ export async function GET(
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
     }
 
-    const customerId = params.id
+    const { id } = await params
+    const customerId = id
 
     if (!customerId) {
       return NextResponse.json({ error: "고객 ID가 필요합니다." }, { status: 400 })
@@ -99,7 +100,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { hasAccess, user } = await checkOperatorOrCEOAccess()
@@ -107,7 +108,8 @@ export async function POST(
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
     }
 
-    const customerId = params.id
+    const { id } = await params
+    const customerId = id
     const { flagType, reason, severity, expiresAt } = await request.json()
 
     if (!customerId || !flagType || !reason) {
@@ -207,7 +209,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { hasAccess, user } = await checkOperatorOrCEOAccess()
@@ -215,7 +217,8 @@ export async function DELETE(
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
     }
 
-    const customerId = params.id
+    const { id } = await params
+    const customerId = id
     const { searchParams } = new URL(request.url)
     const flagId = searchParams.get("flagId")
 
