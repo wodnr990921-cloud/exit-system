@@ -98,7 +98,7 @@ export default function SportsOpsClient() {
   const [editingGame, setEditingGame] = useState<Game | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editScore, setEditScore] = useState("")
-  const [selectedLeague, setSelectedLeague] = useState("kbo")
+  const [selectedLeague, setSelectedLeague] = useState("all")
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)) // YYYY-MM
   const [showAutoSettleDialog, setShowAutoSettleDialog] = useState(false)
@@ -205,38 +205,66 @@ export default function SportsOpsClient() {
     }
   }
 
-  const handleCrawlSchedule = async (league: string = "kbo") => {
+  const handleCrawlSchedule = async (league: string = "all") => {
     setCrawling(true)
     try {
-      // AI 크롤링 사용 (전체 리그 자동)
-      toast({
-        title: "🚀 전체 리그 크롤링 시작",
-        description: "라이브스코어/배트맨/플래시스코어에서 15개 리그 크롤링 중...",
-      })
-
-      const response = await fetch("/api/sports/crawl/ai", {
-        method: "GET",
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        const { stats } = data
-        const sourceInfo = stats?.sources 
-          ? `\n📡 라이브스코어 ${stats.sources.livescore}, 배트맨 ${stats.sources.betman}, 플래시 ${stats.sources.flashscore}`
-          : ""
-        
+      // "전체" 선택 시 또는 league가 "all"일 때
+      if (league === "all") {
         toast({
-          title: "✅ 전체 일정 크롤링 완료",
-          description: `${stats?.successful || 0}개 리그 성공, ${stats?.totalSaved || 0}건 경기 저장${sourceInfo}`,
+          title: "🚀 전체 리그 크롤링 시작",
+          description: "라이브스코어/배트맨/플래시스코어에서 15개 리그 크롤링 중...",
         })
-        await loadAllData()
+
+        const response = await fetch("/api/sports/crawl/ai", {
+          method: "GET",
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          const { stats } = data
+          const sourceInfo = stats?.sources 
+            ? `\n📡 라이브스코어 ${stats.sources.livescore}, 배트맨 ${stats.sources.betman}, 플래시 ${stats.sources.flashscore}`
+            : ""
+          
+          toast({
+            title: "✅ 전체 일정 크롤링 완료",
+            description: `${stats?.successful || 0}개 리그 성공, ${stats?.totalSaved || 0}건 경기 저장${sourceInfo}`,
+          })
+          await loadAllData()
+        } else {
+          toast({
+            title: "일정 가져오기 실패",
+            description: data.error || "경기 일정을 가져올 수 없습니다.",
+            variant: "destructive",
+          })
+        }
       } else {
+        // 개별 리그 크롤링
         toast({
-          title: "일정 가져오기 실패",
-          description: data.error || "경기 일정을 가져올 수 없습니다.",
-          variant: "destructive",
+          title: `🚀 ${league.toUpperCase()} 크롤링 시작`,
+          description: "일정을 가져오는 중...",
         })
+
+        const response = await fetch("/api/sports/crawl/ai", {
+          method: "GET",
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          toast({
+            title: "✅ 일정 크롤링 완료",
+            description: `${data.stats?.totalSaved || 0}건 경기 저장`,
+          })
+          await loadAllData()
+        } else {
+          toast({
+            title: "일정 가져오기 실패",
+            description: data.error || "경기 일정을 가져올 수 없습니다.",
+            variant: "destructive",
+          })
+        }
       }
     } catch (error) {
       console.error("Schedule crawl error:", error)
@@ -1022,10 +1050,11 @@ export default function SportsOpsClient() {
           <div className="flex gap-2 items-center flex-wrap">
             {/* 리그 선택 */}
             <Select value={selectedLeague} onValueChange={setSelectedLeague}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-36">
                 <SelectValue placeholder="리그 선택" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">🌐 전체 리그</SelectItem>
                 <SelectItem value="kbo">⚾ KBO</SelectItem>
                 <SelectItem value="kleague">⚽ K리그</SelectItem>
                 <SelectItem value="kbl">🏀 KBL(남)</SelectItem>
@@ -1035,6 +1064,11 @@ export default function SportsOpsClient() {
                 <SelectItem value="mlb">⚾ MLB</SelectItem>
                 <SelectItem value="nba">🏀 NBA</SelectItem>
                 <SelectItem value="epl">⚽ EPL</SelectItem>
+                <SelectItem value="laliga">⚽ 라리가</SelectItem>
+                <SelectItem value="bundesliga">⚽ 분데스리가</SelectItem>
+                <SelectItem value="seriea">⚽ 세리에A</SelectItem>
+                <SelectItem value="ligue1">⚽ 리그앙</SelectItem>
+                <SelectItem value="npb">⚾ NPB</SelectItem>
               </SelectContent>
             </Select>
 
