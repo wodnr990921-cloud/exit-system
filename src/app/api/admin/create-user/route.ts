@@ -1,6 +1,21 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { checkAdminAccess } from "@/lib/.cursorrules/admin"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+
+// Service Role Key를 사용하는 Admin Client
+function createAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new Error("Service role key가 설정되지 않았습니다. 환경 변수를 확인해주세요.")
+  }
+  
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceRoleKey,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,6 +64,7 @@ export async function POST(request: NextRequest) {
     const finalUsername = cleanUsername
 
     const supabase = await createClient()
+    const adminClient = createAdminClient()
 
     // username 중복 확인 (cleanUsername 사용)
     const { data: existingUser } = await supabase
@@ -68,22 +84,20 @@ export async function POST(request: NextRequest) {
     const uuid = crypto.randomUUID().replace(/-/g, '')
     const email = `${finalUsername}_${uuid.slice(0, 16)}@mail.com`
 
-    // Supabase Auth에 사용자 생성
-    const { data, error } = await supabase.auth.signUp({
+    // Admin API를 사용하여 사용자 생성 (이메일 인증 없이 바로 활성화)
+    const { data, error } = await adminClient.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          username: finalUsername,
-          name: name || "",
-          role: role,
-        },
-        emailRedirectTo: undefined, // 이메일 인증 비활성화
+      email_confirm: true, // 이메일 인증 건너뛰기
+      user_metadata: {
+        username: finalUsername,
+        name: name || "",
+        role: role,
       },
     })
 
     if (error) {
-      if (error.message.includes("already registered")) {
+      if (error.message.includes("already registered") || error.message.includes("already exists")) {
         return NextResponse.json(
           { error: "이미 사용 중인 아이디입니다." },
           { status: 400 }
