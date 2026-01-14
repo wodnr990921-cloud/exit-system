@@ -245,46 +245,175 @@ HTML에서 경기 결과를 찾아서 JSON 형식으로 반환하세요.
 export async function GET(request: NextRequest) {
   try {
     const results = []
+    // 우선순위: 라이브스코어 > 배트맨 > 플래시스코어
     const leagues = [
-      // 국내 리그
-      { name: "KBO", url: "https://sports.news.naver.com/kbaseball/schedule/index" },
-      { name: "K리그", url: "https://sports.daum.net/schedule/kleague" },
-      { name: "KBL", url: "https://sports.news.naver.com/basketball/schedule/index" },
-      { name: "V-리그(남)", url: "https://sports.news.naver.com/volleyball/schedule/index?category=kovo&gender=m" },
-      { name: "V-리그(여)", url: "https://sports.news.naver.com/volleyball/schedule/index?category=kovo&gender=w" },
-      { name: "WKBL", url: "https://sports.news.naver.com/wbasketball/schedule/index" },
+      // 국내 리그 (라이브스코어 우선)
+      { 
+        name: "KBO", 
+        urls: [
+          "https://www.livescore.com/en/baseball/south-korea/kbo/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=6001",
+          "https://www.flashscore.com/baseball/south-korea/kbo/"
+        ]
+      },
+      { 
+        name: "K리그", 
+        urls: [
+          "https://www.livescore.com/en/football/south-korea/k-league-1/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=1001",
+          "https://www.flashscore.com/football/south-korea/k-league-1/"
+        ]
+      },
+      { 
+        name: "KBL", 
+        urls: [
+          "https://www.livescore.com/en/basketball/south-korea/kbl/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=5001",
+          "https://www.flashscore.com/basketball/south-korea/kbl/"
+        ]
+      },
+      { 
+        name: "WKBL", 
+        urls: [
+          "https://www.livescore.com/en/basketball/south-korea/wkbl/",
+          "https://www.flashscore.com/basketball/south-korea/wkbl/"
+        ]
+      },
+      { 
+        name: "V-리그(남)", 
+        urls: [
+          "https://www.livescore.com/en/volleyball/south-korea/v-league-men/",
+          "https://www.flashscore.com/volleyball/south-korea/v-league-men/"
+        ]
+      },
+      { 
+        name: "V-리그(여)", 
+        urls: [
+          "https://www.livescore.com/en/volleyball/south-korea/v-league-women/",
+          "https://www.flashscore.com/volleyball/south-korea/v-league-women/"
+        ]
+      },
       
-      // 해외 축구
-      { name: "EPL", url: "https://www.espn.com/soccer/schedule/_/league/eng.1" },
-      { name: "라리가", url: "https://www.espn.com/soccer/schedule/_/league/esp.1" },
-      { name: "분데스리가", url: "https://www.espn.com/soccer/schedule/_/league/ger.1" },
-      { name: "세리에A", url: "https://www.espn.com/soccer/schedule/_/league/ita.1" },
-      { name: "리그앙", url: "https://www.espn.com/soccer/schedule/_/league/fra.1" },
+      // 해외 축구 (라이브스코어 우선)
+      { 
+        name: "EPL", 
+        urls: [
+          "https://www.livescore.com/en/football/england/premier-league/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=1002",
+          "https://www.flashscore.com/football/england/premier-league/"
+        ]
+      },
+      { 
+        name: "라리가", 
+        urls: [
+          "https://www.livescore.com/en/football/spain/laliga/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=1003",
+          "https://www.flashscore.com/football/spain/laliga/"
+        ]
+      },
+      { 
+        name: "분데스리가", 
+        urls: [
+          "https://www.livescore.com/en/football/germany/bundesliga/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=1004",
+          "https://www.flashscore.com/football/germany/bundesliga/"
+        ]
+      },
+      { 
+        name: "세리에A", 
+        urls: [
+          "https://www.livescore.com/en/football/italy/serie-a/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=1005",
+          "https://www.flashscore.com/football/italy/serie-a/"
+        ]
+      },
+      { 
+        name: "리그앙", 
+        urls: [
+          "https://www.livescore.com/en/football/france/ligue-1/",
+          "https://www.flashscore.com/football/france/ligue-1/"
+        ]
+      },
       
-      // 해외 야구
-      { name: "MLB", url: "https://www.espn.com/mlb/schedule" },
-      { name: "NPB", url: "https://sports.yahoo.co.jp/npb/schedule" },
+      // 해외 야구 (라이브스코어 우선)
+      { 
+        name: "MLB", 
+        urls: [
+          "https://www.livescore.com/en/baseball/usa/mlb/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=6002",
+          "https://www.flashscore.com/baseball/usa/mlb/"
+        ]
+      },
+      { 
+        name: "NPB", 
+        urls: [
+          "https://www.livescore.com/en/baseball/japan/npb/",
+          "https://www.flashscore.com/baseball/japan/npb/"
+        ]
+      },
       
-      // 해외 농구
-      { name: "NBA", url: "https://www.espn.com/nba/schedule" },
+      // 해외 농구 (라이브스코어 우선)
+      { 
+        name: "NBA", 
+        urls: [
+          "https://www.livescore.com/en/basketball/usa/nba/",
+          "https://www.betman.co.kr/sports/schedule.do?sports_id=5002",
+          "https://www.flashscore.com/basketball/usa/nba/"
+        ]
+      },
     ]
 
     console.log(`🚀 전체 리그 크롤링 시작: ${leagues.length}개 리그 (국내 6개 + 해외 9개)`)
+    console.log(`📡 우선순위: 라이브스코어 → 배트맨 → 플래시스코어`)
 
-    // 병렬 크롤링으로 속도 향상
-    const promises = leagues.map(async ({ name, url }) => {
-      try {
-        const response = await fetch(`${request.nextUrl.origin}/api/sports/crawl/ai`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, league: name }),
-        })
-        const data = await response.json()
-        console.log(`✅ ${name} 크롤링 완료: ${data.saved || 0}건`)
-        return { league: name, ...data }
-      } catch (error: any) {
-        console.error(`❌ ${name} 크롤링 실패:`, error.message)
-        return { league: name, success: false, error: error.message }
+    // 병렬 크롤링으로 속도 향상 (폴백 로직 포함)
+    const promises = leagues.map(async ({ name, urls }) => {
+      let lastError = null
+      
+      // 각 URL을 순서대로 시도 (라이브스코어 → 배트맨 → 플래시스코어)
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i]
+        const source = url.includes("livescore") ? "라이브스코어" : 
+                      url.includes("betman") ? "배트맨" : 
+                      url.includes("flashscore") ? "플래시스코어" : "기타"
+        
+        try {
+          console.log(`🔍 ${name} 크롤링 시도 (${source})...`)
+          
+          const response = await fetch(`${request.nextUrl.origin}/api/sports/crawl/ai`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, league: name }),
+          })
+          
+          const data = await response.json()
+          
+          if (data.success && (data.saved > 0 || data.updated > 0)) {
+            console.log(`✅ ${name} 크롤링 완료 (${source}): ${data.saved || 0}건 저장`)
+            return { league: name, source, ...data }
+          } else {
+            console.log(`⚠️ ${name} (${source}): 데이터 없음, 다음 소스 시도...`)
+            lastError = data.message || "데이터 없음"
+          }
+        } catch (error: any) {
+          console.error(`❌ ${name} (${source}) 실패:`, error.message)
+          lastError = error.message
+          
+          // 마지막 URL이 아니면 다음 URL 시도
+          if (i < urls.length - 1) {
+            console.log(`🔄 ${name}: 다음 소스로 재시도...`)
+            continue
+          }
+        }
+      }
+      
+      // 모든 URL 시도 실패
+      console.error(`💥 ${name} 전체 크롤링 실패 (모든 소스 시도 완료)`)
+      return { 
+        league: name, 
+        success: false, 
+        error: lastError || "모든 크롤링 소스 실패",
+        sources_tried: urls.length
       }
     })
 
@@ -295,11 +424,32 @@ export async function GET(request: NextRequest) {
     const successful = results.filter((r) => r.success).length
     const failed = results.filter((r) => !r.success).length
     const totalSaved = results.reduce((sum, r) => sum + (r.saved || 0), 0)
+    
+    // 소스별 통계
+    const sourceStats = {
+      livescore: results.filter((r) => r.source === "라이브스코어").length,
+      betman: results.filter((r) => r.source === "배트맨").length,
+      flashscore: results.filter((r) => r.source === "플래시스코어").length,
+    }
+
+    console.log(`\n📊 크롤링 완료 통계:`)
+    console.log(`  ✅ 성공: ${successful}개`)
+    console.log(`  ❌ 실패: ${failed}개`)
+    console.log(`  💾 총 저장: ${totalSaved}건`)
+    console.log(`  📡 라이브스코어: ${sourceStats.livescore}개`)
+    console.log(`  📡 배트맨: ${sourceStats.betman}개`)
+    console.log(`  📡 플래시스코어: ${sourceStats.flashscore}개`)
 
     return NextResponse.json({
       success: true,
-      message: `전체 크롤링 완료: ${successful}개 성공, ${failed}개 실패, 총 ${totalSaved}건 저장`,
-      stats: { successful, failed, totalSaved, total: leagues.length },
+      message: `전체 크롤링 완료: ${successful}개 성공 (라이브스코어 ${sourceStats.livescore}, 배트맨 ${sourceStats.betman}, 플래시 ${sourceStats.flashscore}), 총 ${totalSaved}건 저장`,
+      stats: { 
+        successful, 
+        failed, 
+        totalSaved, 
+        total: leagues.length,
+        sources: sourceStats
+      },
       results,
     })
   } catch (error: any) {

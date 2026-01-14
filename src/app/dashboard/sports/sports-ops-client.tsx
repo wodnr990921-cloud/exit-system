@@ -211,7 +211,7 @@ export default function SportsOpsClient() {
       // AI 크롤링 사용 (전체 리그 자동)
       toast({
         title: "🚀 전체 리그 크롤링 시작",
-        description: "KBO, K리그, EPL, NBA, MLB 등 모든 리그를 크롤링합니다...",
+        description: "라이브스코어/배트맨/플래시스코어에서 15개 리그 크롤링 중...",
       })
 
       const response = await fetch("/api/sports/crawl/ai", {
@@ -222,9 +222,13 @@ export default function SportsOpsClient() {
 
       if (data.success) {
         const { stats } = data
+        const sourceInfo = stats?.sources 
+          ? `\n📡 라이브스코어 ${stats.sources.livescore}, 배트맨 ${stats.sources.betman}, 플래시 ${stats.sources.flashscore}`
+          : ""
+        
         toast({
           title: "✅ 전체 일정 크롤링 완료",
-          description: `${stats?.successful || 0}개 리그 성공, ${stats?.totalSaved || 0}건 경기 저장`,
+          description: `${stats?.successful || 0}개 리그 성공, ${stats?.totalSaved || 0}건 경기 저장${sourceInfo}`,
         })
         await loadAllData()
       } else {
