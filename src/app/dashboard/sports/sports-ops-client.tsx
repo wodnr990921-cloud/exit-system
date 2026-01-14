@@ -158,10 +158,20 @@ export default function SportsOpsClient() {
   const handleCrawlResults = async (league: string = "kbo") => {
     setCrawling(true)
     try {
-      const response = await fetch("/api/sports/crawl/naver", {
+      // AI 크롤링 사용 (네이버 크롤링 대신)
+      const urls: Record<string, string> = {
+        kbo: "https://sports.news.naver.com/kbaseball/schedule/index",
+        kleague: "https://sports.daum.net/schedule/kleague",
+        epl: "https://www.espn.com/soccer/schedule/_/league/eng.1",
+      }
+      
+      const response = await fetch("/api/sports/crawl/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ league, type: "result", saveToDb: true }),
+        body: JSON.stringify({ 
+          url: urls[league.toLowerCase()] || urls.kbo,
+          league: league.toUpperCase() 
+        }),
       })
 
       const data = await response.json()
@@ -194,10 +204,9 @@ export default function SportsOpsClient() {
   const handleCrawlSchedule = async (league: string = "kbo") => {
     setCrawling(true)
     try {
-      const response = await fetch("/api/sports/crawl/naver", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ league, type: "schedule", saveToDb: true }),
+      // AI 크롤링 사용 (다중 사이트 자동)
+      const response = await fetch("/api/sports/crawl/ai", {
+        method: "GET",
       })
 
       const data = await response.json()
