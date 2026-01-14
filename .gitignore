@@ -38,3 +38,4 @@ next-env.d.ts
 # temporary files
 nul
 tmpclaude-*
+.env.local
