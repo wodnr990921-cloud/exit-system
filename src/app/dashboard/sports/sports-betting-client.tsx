@@ -153,20 +153,23 @@ export default function SportsBettingClient() {
   const loadBets = async () => {
     try {
       // betting_items 뷰에서 배팅 데이터 로딩
+      // task_items -> tasks -> customers 경로로 조인
       const { data, error } = await supabase
         .from('task_items')
         .select(`
           id,
           match_id,
-          customer_id,
           amount,
           betting_choice,
           betting_odds,
           potential_win,
           status,
           created_at,
-          task:tasks!inner(ticket_no),
-          customer:customers(member_number, name)
+          task:tasks!inner(
+            ticket_no,
+            customer_id,
+            customer:customers!tasks_customer_id_fkey(member_number, name)
+          )
         `)
         .not('match_id', 'is', null)
         .order('created_at', { ascending: false })
@@ -180,9 +183,9 @@ export default function SportsBettingClient() {
       const betsData = (data || []).map((item: any) => ({
         id: item.id,
         match_id: item.match_id || '',
-        customer_id: item.customer_id || '',
-        customer_name: item.customer?.name || '알 수 없음',
-        member_number: item.customer?.member_number || 'N/A',
+        customer_id: item.task?.customer_id || '',
+        customer_name: item.task?.customer?.name || '알 수 없음',
+        member_number: item.task?.customer?.member_number || 'N/A',
         amount: item.amount || 0,
         choice: item.betting_choice || 'home',
         odds: item.betting_odds || 1.0,
