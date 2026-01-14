@@ -23,7 +23,6 @@ interface WorkReport {
 
 export default function MobileWorkReportPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [currentReport, setCurrentReport] = useState<WorkReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -37,6 +36,7 @@ export default function MobileWorkReportPage() {
 
   const loadCurrentReport = async () => {
     try {
+      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()

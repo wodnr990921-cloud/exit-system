@@ -22,7 +22,6 @@ interface Customer {
 
 export default function MobileMembersPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -33,6 +32,7 @@ export default function MobileMembersPage() {
 
   const loadCustomers = async () => {
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from("customers")
         .select("*")

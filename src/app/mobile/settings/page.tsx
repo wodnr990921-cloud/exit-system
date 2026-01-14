@@ -18,7 +18,6 @@ interface User {
 
 export default function MobileSettingsPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -28,6 +27,7 @@ export default function MobileSettingsPage() {
 
   const loadUser = async () => {
     try {
+      const supabase = createClient()
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser()
@@ -48,6 +48,7 @@ export default function MobileSettingsPage() {
   }
 
   const handleLogout = async () => {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/")
   }

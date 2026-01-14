@@ -23,7 +23,6 @@ interface Task {
 
 export default function MobileTasksPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -34,6 +33,7 @@ export default function MobileTasksPage() {
 
   const loadTasks = async () => {
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from("tasks")
         .select(`
