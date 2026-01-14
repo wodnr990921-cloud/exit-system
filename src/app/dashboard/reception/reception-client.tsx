@@ -90,7 +90,7 @@ export default function ReceptionClient() {
     name: "",
     institution: "",
     prison_number: "",
-    phone: "",
+    mailbox_address: "",
   })
   const [creatingMember, setCreatingMember] = useState(false)
 
@@ -179,7 +179,7 @@ export default function ReceptionClient() {
           name: newMemberForm.name.trim(),
           institution: newMemberForm.institution.trim() || null,
           prison_number: newMemberForm.prison_number.trim() || null,
-          phone: newMemberForm.phone.trim() || null,
+          mailbox_address: newMemberForm.mailbox_address.trim() || null,
         }),
       })
 
@@ -208,7 +208,7 @@ export default function ReceptionClient() {
       
       // 다이얼로그 닫기
       setShowNewMemberDialog(false)
-      setNewMemberForm({ name: "", institution: "", prison_number: "", phone: "" })
+      setNewMemberForm({ name: "", institution: "", prison_number: "", mailbox_address: "" })
       
       setSuccess("새 회원이 등록되었습니다.")
       setTimeout(() => setSuccess(null), 3000)
@@ -634,12 +634,12 @@ export default function ReceptionClient() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="new-phone">연락처</Label>
+                  <Label htmlFor="new-mailbox">사서함 주소</Label>
                   <Input
-                    id="new-phone"
-                    value={newMemberForm.phone}
-                    onChange={(e) => setNewMemberForm({ ...newMemberForm, phone: e.target.value })}
-                    placeholder="연락처를 입력하세요"
+                    id="new-mailbox"
+                    value={newMemberForm.mailbox_address}
+                    onChange={(e) => setNewMemberForm({ ...newMemberForm, mailbox_address: e.target.value })}
+                    placeholder="사서함 주소를 입력하세요"
                     disabled={creatingMember}
                   />
                 </div>

@@ -50,3 +50,30 @@ export async function checkReadAccess() {
 export async function checkManagementAccess() {
   return checkOperatorOrCEOAccess()
 }
+
+/**
+ * 직원 이상 권한 확인 (employee, operator, admin, ceo 모두 포함)
+ */
+export async function checkStaffAccess() {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { hasAccess: false, user: null }
+    }
+
+    const { data } = await supabase.from("users").select("role").eq("id", user.id).single()
+
+    if (data && (data.role === "ceo" || data.role === "admin" || data.role === "operator" || data.role === "employee")) {
+      return { hasAccess: true, user }
+    }
+
+    return { hasAccess: false, user }
+  } catch (error) {
+    console.error("Error checking staff permissions:", error)
+    return { hasAccess: false, user: null }
+  }
+}

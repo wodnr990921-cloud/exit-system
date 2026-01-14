@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { checkOperatorOrCEOAccess, checkReadAccess } from "@/lib/.cursorrules/permissions"
+import { checkOperatorOrCEOAccess, checkReadAccess, checkStaffAccess } from "@/lib/.cursorrules/permissions"
 
 /**
  * GET /api/customers
@@ -61,16 +61,16 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/customers
  * 신규 회원 등록
- * 권한: operator 이상
+ * 권한: employee 이상 (모든 직원)
  */
 export async function POST(request: NextRequest) {
   try {
-    const { hasAccess, user } = await checkOperatorOrCEOAccess()
+    const { hasAccess, user } = await checkStaffAccess()
     if (!hasAccess || !user) {
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
     }
 
-    const { name, institution, prison_number, phone } = await request.json()
+    const { name, institution, prison_number, mailbox_address } = await request.json()
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "이름은 필수입니다." }, { status: 400 })
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         institution: institution?.trim() || null,
         prison_number: prison_number?.trim() || null,
-        phone: phone?.trim() || null,
+        mailbox_address: mailbox_address?.trim() || null,
         status: "active",
         point_balance: 0,
       })
