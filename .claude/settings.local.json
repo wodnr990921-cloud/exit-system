@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout 5 tail:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 8 tail:*)",
+      "Bash(test:*)",
+      "Bash(dir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(New-Item -Path \"C:\\\\Users\\\\User\\\\exit system\\\\src\\\\app\\\\dashboard\\\\settings\\\\page.tsx\" -ItemType File -Force)",
+      "Bash(Out-Null)",
+      "Bash(New-Item -Path \"C:\\\\Users\\\\User\\\\exit system\\\\src\\\\app\\\\dashboard\\\\audit-logs\\\\page.tsx\" -ItemType File -Force)",
+      "Bash(New-Item -Path \"C:\\\\Users\\\\User\\\\exit system\\\\src\\\\app\\\\dashboard\\\\blacklist\\\\page.tsx\" -ItemType File -Force)",
+      "Bash(New-Item -Path \"C:\\\\Users\\\\User\\\\exit system\\\\src\\\\app\\\\dashboard\\\\inventory\\\\page.tsx\" -ItemType File -Force)",
+      "Bash(New-Item -Path \"C:\\\\Users\\\\User\\\\exit system\\\\src\\\\app\\\\dashboard\\\\settlements\\\\page.tsx\" -ItemType File -Force)",
+      "Bash(timeout 10 tail:*)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Select-Object Id, ProcessName, @{Name=''Port'';Expression={$_Id}}\")",
+      "Bash(npx supabase:*)",
+      "Bash(ls:*)",
+      "Bash(timeout /t)",
+      "Bash(cmd.exe //c \"taskkill /F /PID 4504\")"
+    ]
+  }
+}
