@@ -42,6 +42,16 @@ interface Task {
     return_date: string
     refund_status: string
   }
+  items?: Array<{
+    id: string
+    match_id?: string | null
+    betting_choice?: string | null
+    betting_odds?: number | null
+    potential_win?: number | null
+    category?: string
+    description?: string
+    amount?: number
+  }>
   customer: {
     member_number: string
     name: string
@@ -120,7 +130,8 @@ export default function IntakeClient() {
           *,
           customer:customers!tasks_customer_id_fkey (member_number, name, institution, prison_number),
           user:users!tasks_user_id_fkey (name, username),
-          assigned_to_user:users!tasks_assigned_to_fkey (name, username)
+          assigned_to_user:users!tasks_assigned_to_fkey (name, username),
+          items:task_items(id, match_id, betting_choice, betting_odds, potential_win, category, description, amount)
         `
         )
         .order("created_at", { ascending: false })
@@ -530,6 +541,18 @@ export default function IntakeClient() {
                             </span>
                           </div>
 
+                          {/* 배팅 정보 (있는 경우) */}
+                          {task.items && task.items.some((item: any) => item.match_id) && (
+                            <div className="flex items-center gap-1 px-2.5 py-1 bg-yellow-50 dark:bg-yellow-950 rounded border border-yellow-200 dark:border-yellow-800">
+                              <span className="text-yellow-700 dark:text-yellow-300 text-xs font-semibold">
+                                ⚽ 스포츠 배팅
+                              </span>
+                              <span className="text-yellow-600 dark:text-yellow-400 text-xs">
+                                {task.items.filter((item: any) => item.match_id).length}경기
+                              </span>
+                            </div>
+                          )}
+
                           {/* 변동포인트 */}
                           {task.amount && (
                             <div className={`font-medium ${
@@ -620,6 +643,46 @@ export default function IntakeClient() {
                     {selectedTask.description || "-"}
                   </p>
                 </div>
+
+                {/* 배팅 정보 (있는 경우) */}
+                {selectedTask.items && selectedTask.items.some(item => item.match_id) && (
+                  <div className="border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 bg-yellow-50 dark:bg-yellow-950">
+                    <Label className="text-sm font-medium text-yellow-900 dark:text-yellow-100 mb-3 block flex items-center gap-2">
+                      <span>⚽</span>
+                      스포츠 배팅 정보
+                    </Label>
+                    <div className="space-y-2">
+                      {selectedTask.items.filter(item => item.match_id).map((item, idx) => (
+                        <div key={item.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded border border-yellow-100 dark:border-yellow-900">
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                              경기 #{idx + 1}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              선택: {item.betting_choice === 'home' ? '홈팀 승' : item.betting_choice === 'away' ? '원정팀 승' : '무승부'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">배당</div>
+                            <div className="font-bold text-yellow-700 dark:text-yellow-400">
+                              {item.betting_odds?.toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">배팅액</div>
+                            <div className="font-semibold">{item.amount?.toLocaleString()}P</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">예상당첨</div>
+                            <div className="font-bold text-green-600 dark:text-green-400">
+                              {item.potential_win?.toLocaleString()}P
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t pt-4 space-y-4">
                   <Label className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 block">댓글 / 답글</Label>
