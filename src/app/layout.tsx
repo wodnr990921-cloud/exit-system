@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description: "OCR 편지 관리 시스템",
 };
 
+// Force all pages to be dynamic (no static generation at build time)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default function RootLayout({
   children,
 }: Readonly<{
