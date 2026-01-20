@@ -97,6 +97,9 @@ export default function ClosingClient() {
   const [newCustomerPhone, setNewCustomerPhone] = useState("")
   const [newCustomerAddress, setNewCustomerAddress] = useState("")
 
+  // 답변 작성 관련 state
+  const [taskReplyText, setTaskReplyText] = useState("")
+
   useEffect(() => {
     loadTasks()
     loadDailySummary()
@@ -281,6 +284,122 @@ export default function ClosingClient() {
     return amount.toLocaleString("ko-KR")
   }
 
+  // 답변 저장
+  const handleSaveReply = async () => {
+    if (!selectedTask || !taskReplyText.trim()) {
+      setError("답변 내용을 입력해주세요.")
+      return
+    }
+
+    try {
+      const { error: taskItemError } = await supabase.from("task_items").insert({
+        task_id: selectedTask.id,
+        category: "답변",
+        description: taskReplyText.trim(),
+        amount: 0,
+        status: "approved",
+      })
+
+      if (taskItemError) throw taskItemError
+
+      setSuccess("답변이 저장되었습니다.")
+      setTaskReplyText("")
+      loadTasks()
+
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (error: any) {
+      console.error("Save reply error:", error)
+      setError(error.message || "답변 저장 중 오류가 발생했습니다.")
+    }
+  }
+
+  // 답변 일괄 출력
+  const handleBatchPrintReplies = async () => {
+    try {
+      const { data: replies, error } = await supabase
+        .from("task_items")
+        .select(`
+          id,
+          description,
+          created_at,
+          task:tasks!inner(
+            ticket_no,
+            customer:customers(name, member_number)
+          )
+        `)
+        .eq("category", "답변")
+        .order("created_at", { ascending: false })
+        .limit(100)
+
+      if (error) throw error
+
+      if (!replies || replies.length === 0) {
+        setError("출력할 답변이 없습니다.")
+        return
+      }
+
+      const printWindow = window.open("", "_blank")
+      if (!printWindow) {
+        setError("팝업 차단을 해제해주세요.")
+        return
+      }
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>답변 일괄 출력</title>
+          <style>
+            @media print {
+              @page { margin: 1cm; }
+              .page-break { page-break-after: always; }
+            }
+            body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; }
+            h1 { text-align: center; margin-bottom: 30px; }
+            .reply-item { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+            .reply-header { font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 2px solid #333; }
+            .reply-content { line-height: 1.8; white-space: pre-wrap; }
+            .reply-footer { margin-top: 10px; text-align: right; color: #666; font-size: 0.9em; }
+          </style>
+        </head>
+        <body>
+          <h1>📮 마감업무 답변 일괄 출력</h1>
+          ${replies
+            .map(
+              (reply: any, index: number) => `
+            <div class="reply-item ${index < replies.length - 1 ? "page-break" : ""}">
+              <div class="reply-header">
+                티켓: ${reply.task?.ticket_no || "미지정"} | 
+                회원: ${reply.task?.customer?.name || "미지정"} (${reply.task?.customer?.member_number || ""})
+              </div>
+              <div class="reply-content">${reply.description}</div>
+              <div class="reply-footer">
+                작성일시: ${new Date(reply.created_at).toLocaleString("ko-KR")}
+              </div>
+            </div>
+          `
+            )
+            .join("")}
+        </body>
+        </html>
+      `
+
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.focus()
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+
+      setSuccess(`${replies.length}개의 답변을 출력 중입니다.`)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (error: any) {
+      console.error("Batch print error:", error)
+      setError(error.message || "답변 출력 중 오류가 발생했습니다.")
+    }
+  }
+
   // 회원 검색
   const handleSearchCustomer = async (query: string) => {
     setSearchQuery(query)
@@ -456,23 +575,23 @@ export default function ClosingClient() {
           <div className="flex items-center gap-3">
             <Button
               onClick={() => setShowCreateDialog(true)}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white font-medium"
             >
               + 신규 티켓 생성
             </Button>
             <Button
               variant="outline"
-              onClick={loadTasks}
-              className="border-gray-300 dark:border-gray-700"
+              onClick={handleBatchPrintReplies}
+              className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium"
             >
-              새로고침
+              답변 일괄 출력
             </Button>
             <Button
               variant="outline"
-              onClick={() => router.push("/dashboard/closing/print")}
-              className="border-gray-300 dark:border-gray-700"
+              onClick={loadTasks}
+              className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium"
             >
-              일괄 출력
+              새로고침
             </Button>
           </div>
         </div>
@@ -602,7 +721,9 @@ export default function ClosingClient() {
                 <>
                   {/* 처리 내역 요약 */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">처리 내역</Label>
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📋 처리 내역</Label>
+                    </div>
                     <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-sm">
                       {selectedTask.task_items.length === 0 ? (
                         <div className="text-gray-500 dark:text-gray-400">처리 내역이 없습니다.</div>
@@ -626,13 +747,15 @@ export default function ClosingClient() {
                   {/* 답장 내용 */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">답장 내용</Label>
+                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💬 답장 내용</Label>
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={generateReply}
                         disabled={generatingReply}
-                        className="border-gray-300 dark:border-gray-700"
+                        className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium"
                       >
                         {generatingReply ? "생성 중..." : "답장 재생성"}
                       </Button>
@@ -641,15 +764,36 @@ export default function ClosingClient() {
                       value={replyContent}
                       onChange={(e) => setReplyContent(e.target.value)}
                       placeholder="답장 내용이 여기에 표시됩니다. 필요시 수정할 수 있습니다."
-                      className="min-h-[300px] border-gray-300 dark:border-gray-700 resize-none"
+                      className="min-h-[200px] border-gray-300 dark:border-gray-700 resize-none"
                     />
+                  </div>
+
+                  {/* 답변 작성 */}
+                  <div className="space-y-2">
+                    <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">✍️ 답변 작성</Label>
+                    </div>
+                    <Textarea
+                      value={taskReplyText}
+                      onChange={(e) => setTaskReplyText(e.target.value)}
+                      placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
+                      className="min-h-[120px] border-gray-300 dark:border-gray-700 resize-none"
+                    />
+                    <Button
+                      onClick={handleSaveReply}
+                      disabled={!taskReplyText.trim()}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                    >
+                      답변 저장
+                    </Button>
                   </div>
 
                   {/* 마감 승인 버튼 */}
                   <Button
                     onClick={handleApprove}
                     disabled={!replyContent.trim() || saving}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
                   >
                     {saving ? "마감 처리 중..." : "마감 승인"}
                   </Button>
@@ -677,12 +821,14 @@ export default function ClosingClient() {
               {/* 회원 검색 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="customer-search">회원 검색</Label>
+                  <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
+                    <Label htmlFor="customer-search" className="font-bold text-gray-900 dark:text-gray-100">👤 회원 검색</Label>
+                  </div>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
-                    className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="h-7 text-xs text-gray-900 dark:text-gray-100 hover:text-blue-700 hover:bg-blue-50 font-medium"
                   >
                     <UserPlus className="w-3 h-3 mr-1" />
                     신규 회원 등록
@@ -818,7 +964,9 @@ export default function ClosingClient() {
 
               {/* 카테고리 선택 */}
               <div className="space-y-2">
-                <Label htmlFor="category">카테고리</Label>
+                <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
+                  <Label htmlFor="category" className="font-bold text-gray-900 dark:text-gray-100">📂 카테고리</Label>
+                </div>
                 <Select value={taskCategory} onValueChange={setTaskCategory}>
                   <SelectTrigger className="border-gray-300 dark:border-gray-700">
                     <SelectValue />
@@ -837,7 +985,9 @@ export default function ClosingClient() {
 
               {/* 요청 내용 */}
               <div className="space-y-2">
-                <Label htmlFor="description">요청 내용</Label>
+                <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
+                  <Label htmlFor="description" className="font-bold text-gray-900 dark:text-gray-100">📝 요청 내용</Label>
+                </div>
                 <Textarea
                   id="description"
                   placeholder="티켓 내용을 입력하세요"
@@ -849,7 +999,9 @@ export default function ClosingClient() {
 
               {/* 금액 */}
               <div className="space-y-2">
-                <Label htmlFor="amount">금액 (선택)</Label>
+                <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
+                  <Label htmlFor="amount" className="font-bold text-gray-900 dark:text-gray-100">💰 금액 (선택)</Label>
+                </div>
                 <Input
                   id="amount"
                   type="number"
@@ -866,14 +1018,14 @@ export default function ClosingClient() {
                 variant="outline"
                 onClick={handleCloseDialog}
                 disabled={creating}
-                className="border-gray-300 dark:border-gray-700"
+                className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium"
               >
                 취소
               </Button>
               <Button
                 onClick={handleCreateTicket}
                 disabled={!selectedCustomer || !taskDescription.trim() || creating}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
               >
                 {creating ? "생성 중..." : "티켓 생성"}
               </Button>
