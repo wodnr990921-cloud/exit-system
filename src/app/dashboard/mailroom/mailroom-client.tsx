@@ -628,25 +628,61 @@ export default function MailroomClient() {
         } = supabase.storage.from("letters").getPublicUrl(fileName)
 
         // letters 테이블에 레코드 생성
-        const { error: insertError } = await supabase.from("letters").insert({
-          user_id: user.id,
-          file_path: fileName,
-          file_url: publicUrl,
-          file_name: file.name,
-          file_size: compressedFile.size,
-          file_type: compressedFile.type,
-          status: "uploaded",
-        })
+        const { data: letterData, error: insertError } = await supabase
+          .from("letters")
+          .insert({
+            user_id: user.id,
+            file_path: fileName,
+            file_url: publicUrl,
+            file_name: file.name,
+            file_size: compressedFile.size,
+            file_type: compressedFile.type,
+            status: "uploaded",
+          })
+          .select()
+          .single()
 
         if (insertError) throw insertError
+
+        // 자동 OCR 처리
+        try {
+          const formData = new FormData()
+          formData.append("image", compressedFile)
+          formData.append("detectImageType", "true")
+          formData.append("detectProhibited", "true")
+          formData.append("extractHandwriting", "true")
+
+          const ocrResponse = await fetch("/api/ocr", {
+            method: "POST",
+            body: formData,
+          })
+
+          const ocrResult = await ocrResponse.json()
+
+          if (ocrResult.success && ocrResult.data && letterData) {
+            // OCR 결과를 letters 테이블에 업데이트
+            await supabase
+              .from("letters")
+              .update({
+                ocr_text: ocrResult.data.rawText || null,
+                ocr_confidence: ocrResult.data.confidence || null,
+                ocr_image_type: ocrResult.data.imageType || null,
+                ocr_prohibited_content: ocrResult.data.prohibitedContent || null,
+              })
+              .eq("id", letterData.id)
+          }
+        } catch (ocrError) {
+          console.error("OCR 자동 처리 오류:", ocrError)
+          // OCR 실패해도 업로드는 성공으로 처리
+        }
 
         uploadedCount++
         setUploadProgress(Math.round((uploadedCount / totalFiles) * 100))
       }
 
       toast({
-        title: "업로드 완료",
-        description: `${uploadedCount}개의 편지가 업로드되었습니다.`,
+        title: "업로드 및 OCR 완료",
+        description: `${uploadedCount}개의 편지가 업로드되고 자동으로 OCR 처리되었습니다.`,
       })
 
       // 목록 새로고침
@@ -1398,11 +1434,27 @@ export default function MailroomClient() {
               </div>
 
               {/* Footer Action Button */}
-              <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+              <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm space-y-3">
+                {/* 필수 조건 안내 */}
+                {(!selectedCustomer || !selectedStaff) && (
+                  <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium mb-1">배정 전 확인사항:</p>
+                        <ul className="text-xs space-y-1">
+                          {!selectedCustomer && <li>• 회원을 선택해주세요</li>}
+                          {!selectedStaff && <li>• 담당자를 선택해주세요</li>}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   onClick={handleSaveAndNext}
                   disabled={processing || !selectedCustomer || !selectedStaff}
-                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all"
+                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
                   {processing ? (
@@ -1412,8 +1464,8 @@ export default function MailroomClient() {
                     </>
                   ) : (
                     <>
-                      <Save className="w-5 h-5 mr-2" />
-                      저장 후 다음
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      배정 완료
                       <ArrowRight className="w-5 h-5 ml-2" />
                       <span className="ml-2 text-xs opacity-75">(Ctrl+Enter)</span>
                     </>
