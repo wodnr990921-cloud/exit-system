@@ -131,11 +131,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response)
   } catch (error: any) {
     console.error("OCR Error:", error)
+    console.error("Error stack:", error.stack)
+    
+    // 더 자세한 오류 정보 제공
+    const errorMessage = error.message || "알 수 없는 오류"
+    const errorDetails = {
+      message: errorMessage,
+      type: error.name,
+      code: error.code,
+    }
+    
     return NextResponse.json(
       {
         success: false,
         error: "OCR 처리 중 오류가 발생했습니다.",
-        details: error.message,
+        details: errorMessage,
+        debug: errorDetails,
       },
       { status: 500 }
     )
@@ -225,7 +236,8 @@ async function performOcrByType(
 
   switch (imageType) {
     case ImageType.ENVELOPE:
-      prompt = `편지봉투에서 다음 정보를 추출해주세요:
+      prompt = `편지봉투의 모든 텍스트를 읽어주세요.
+발신인 정보, 수신인 정보, 주소, 우편번호 등을 추출해주세요.
 
 JSON 형식으로 응답:
 {
@@ -235,21 +247,27 @@ JSON 형식으로 응답:
   "recipientAddress": "수신인 주소",
   "postalCode": "우편번호",
   "confidence": 0-100,
-  "rawText": "모든 텍스트"
-}`
+  "rawText": "봉투의 모든 텍스트 (빠짐없이)"
+}
+
+중요: rawText에 봉투에 있는 모든 글자를 포함시켜주세요.`
       break
 
     case ImageType.LETTER_CONTENT:
-      prompt = `편지 내용을 읽어주세요:
+      prompt = `이 이미지의 모든 텍스트를 정확하게 읽어주세요.
+인쇄된 글자와 손글씨를 모두 인식해주세요.
+가능한 한 원본 그대로 줄바꿈과 문단을 유지해주세요.
 
 JSON 형식으로 응답:
 {
-  "fullText": "전체 텍스트",
+  "fullText": "전체 텍스트 (모든 내용)",
   "paragraphs": ["문단1", "문단2", ...],
   "handwritten": true/false,
   "confidence": 0-100,
-  "rawText": "전체 텍스트"
-}`
+  "rawText": "전체 텍스트 (동일)"
+}
+
+중요: rawText에 이미지의 모든 글자를 빠짐없이 포함시켜주세요.`
       break
 
     case ImageType.PRODUCT_PHOTO:
@@ -283,13 +301,17 @@ JSON 형식으로 응답:
       break
 
     default:
-      prompt = `이미지의 모든 텍스트를 추출해주세요:
+      prompt = `이 이미지의 모든 텍스트를 정확하게 읽어주세요.
+인쇄된 글자, 손글씨, 타이핑, 모든 형태의 텍스트를 인식해주세요.
+한글, 영어, 숫자 모두 포함시켜주세요.
 
 JSON 형식으로 응답:
 {
-  "rawText": "모든 텍스트",
+  "rawText": "모든 텍스트 (빠짐없이)",
   "confidence": 0-100
-}`
+}
+
+중요: 이미지에 있는 모든 글자를 빠짐없이 추출해주세요.`
   }
 
   try {
@@ -313,13 +335,15 @@ JSON 형식으로 응답:
             ],
           },
         ],
-        max_tokens: 1500,
-        temperature: 0.3,
+        max_tokens: 2000,
+        temperature: 0.1,
       }),
     })
 
     if (!response.ok) {
-      throw new Error("OCR API 호출 실패")
+      const errorData = await response.json().catch(() => ({}))
+      console.error("OpenAI API 오류:", response.status, errorData)
+      throw new Error(`OCR API 호출 실패: ${response.status}`)
     }
 
     const data = await response.json()
@@ -336,15 +360,27 @@ JSON 형식으로 응답:
 
     const result = JSON.parse(jsonString)
 
+    // rawText가 비어있으면 content 전체를 사용
+    const extractedText = result.rawText || result.fullText || content
+    
+    console.log("OCR 추출 완료:", {
+      textLength: extractedText.length,
+      confidence: result.confidence,
+      imageType: imageType
+    })
+
     return {
-      rawText: result.rawText || content,
+      rawText: extractedText,
       confidence: result.confidence || 50,
       structuredData: result,
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("OCR by type error:", error)
+    console.error("Error details:", error.message, error.stack)
+    
+    // 오류 발생 시에도 기본 텍스트 추출 시도
     return {
-      rawText: "",
+      rawText: `OCR 처리 중 오류 발생: ${error.message}`,
       confidence: 0,
       structuredData: null,
     }
