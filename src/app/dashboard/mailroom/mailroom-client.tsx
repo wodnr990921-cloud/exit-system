@@ -411,6 +411,7 @@ export default function MailroomClient() {
       return
     }
 
+    console.log(`🎯 [우편실] 배정 시작 - ${selectedLetters.length}개 편지`)
     setProcessing(true)
 
     try {
@@ -456,6 +457,8 @@ export default function MailroomClient() {
         const letterType = selectedLetter.ocr_image_type === "envelope" ? "신규 편지" : "편지 내용"
         const taskTitle = `[우편실] ${letterType} - ${selectedCustomer.name || "미등록 회원"}`
         
+        console.log(`📝 새 티켓 생성 중... 제목: ${taskTitle}`)
+        
         const { data: task, error: taskError } = await supabase
           .from("tasks")
           .insert({
@@ -469,8 +472,13 @@ export default function MailroomClient() {
           .select()
           .single()
 
-        if (taskError) throw taskError
+        if (taskError) {
+          console.error("❌ 티켓 생성 실패:", taskError)
+          throw taskError
+        }
+        
         taskId = task.id
+        console.log(`✅ 티켓 생성 완료! ID: ${taskId}`)
       }
 
       // Create task items based on activeTab
@@ -517,10 +525,17 @@ export default function MailroomClient() {
 
       // Add OCR text from all selected letters as task items
       if (selectedLetters.length > 0) {
+        console.log(`📮 [우편실] ${selectedLetters.length}개 편지 처리 중...`)
+        
         const combinedOcrTexts = selectedLetters
           .filter((letter) => letter.ocr_text)
-          .map((letter, index) => `[편지 ${index + 1}]\n${letter.ocr_text}`)
+          .map((letter, index) => {
+            console.log(`  - 편지 ${index + 1}: OCR 텍스트 ${letter.ocr_text?.length || 0}자`)
+            return `[편지 ${index + 1}]\n${letter.ocr_text}`
+          })
           .join("\n\n")
+
+        console.log(`📝 합쳐진 텍스트 총 ${combinedOcrTexts.length}자`)
 
         if (combinedOcrTexts) {
           taskItems.push({
@@ -530,6 +545,7 @@ export default function MailroomClient() {
             amount: 0,
             status: "pending",
           })
+          console.log(`✅ 편지 내용 task_item 생성됨`)
         }
       }
 
@@ -547,6 +563,13 @@ export default function MailroomClient() {
 
       if (letterError) throw letterError
 
+      console.log(`🎉 배정 완료! ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}`)
+      
+      toast({
+        title: "배정 완료",
+        description: `${selectedLetters.length}개 편지가 ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}에게 배정되었습니다.`,
+      })
+
       setSuccess(
         `배정 완료: ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "(미등록 회원)" : selectedCustomer.name}`
       )
@@ -559,8 +582,32 @@ export default function MailroomClient() {
       await loadDailyStats()
 
     } catch (error: any) {
-      console.error("Save error:", error)
-      setError(error.message || "저장 중 오류가 발생했습니다.")
+      console.error("❌ [우편실] 배정 실패:", error)
+      console.error("오류 상세:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      
+      // 사용자 친화적인 오류 메시지
+      let userMessage = "저장 중 오류가 발생했습니다."
+      if (error.code === "23502") {
+        const column = error.message.match(/column "([^"]+)"/)?.[1]
+        userMessage = `필수 정보가 누락되었습니다: ${column || "알 수 없음"}`
+      } else if (error.code === "42702") {
+        userMessage = "데이터베이스 설정 오류입니다. 관리자에게 문의하세요."
+      } else if (error.message) {
+        userMessage = error.message
+      }
+      
+      setError(userMessage)
+      
+      toast({
+        title: "배정 실패",
+        description: userMessage,
+        variant: "destructive",
+      })
     } finally {
       setProcessing(false)
     }
@@ -1015,7 +1062,7 @@ export default function MailroomClient() {
                     </TransformWrapper>
                   </div>
                 ) : (
-                  <div className="space-y-3 h-[600px] overflow-y-auto">
+                  <div className="space-y-3 h-[600px] overflow-y-auto p-2">
                     {selectedLetters.map((letter, index) => (
                       <div key={letter.id} className="relative">
                         <Badge className="absolute top-2 left-2 z-10 bg-blue-600">
@@ -1024,7 +1071,7 @@ export default function MailroomClient() {
                         <img
                           src={letter.file_url}
                           alt={`Letter ${index + 1}`}
-                          className="w-full rounded-lg border-2 border-gray-200 dark:border-gray-700"
+                          className="w-full max-h-[300px] object-contain rounded-lg border-2 border-gray-200 dark:border-gray-700"
                         />
                       </div>
                     ))}
