@@ -114,56 +114,76 @@ DO $$
 DECLARE
   task_record RECORD;
   new_ticket_no TEXT;
+  updated_count INTEGER := 0;
 BEGIN
   FOR task_record IN 
     SELECT id FROM tasks WHERE ticket_no IS NULL ORDER BY created_at
   LOOP
     new_ticket_no := generate_ticket_no();
     UPDATE tasks SET ticket_no = new_ticket_no WHERE id = task_record.id;
+    updated_count := updated_count + 1;
   END LOOP;
   
-  RAISE NOTICE '✅ 기존 티켓에 ticket_no 부여 완료';
+  RAISE NOTICE '✅ 기존 티켓에 ticket_no 부여 완료 (% 개)', updated_count;
 END $$;
 
 -- ================================================================
--- PART 6: 확인
+-- PART 6: 확인 및 통계
 -- ================================================================
 
 DO $$
 DECLARE
   ticket_count INTEGER;
   null_count INTEGER;
+  today_count INTEGER;
+  today_pattern TEXT;
 BEGIN
+  -- 전체 통계
   SELECT COUNT(*) INTO ticket_count FROM tasks WHERE ticket_no IS NOT NULL;
   SELECT COUNT(*) INTO null_count FROM tasks WHERE ticket_no IS NULL;
+  
+  -- 오늘 생성된 티켓 수
+  today_pattern := TO_CHAR(NOW(), 'YYMMDD') || '-%';
+  SELECT COUNT(*) INTO today_count FROM tasks WHERE ticket_no LIKE today_pattern;
   
   RAISE NOTICE '';
   RAISE NOTICE '================================================================';
   RAISE NOTICE '✅ Ticket Number Auto-Generation 설정 완료!';
   RAISE NOTICE '================================================================';
   RAISE NOTICE '';
-  RAISE NOTICE '통계:';
+  RAISE NOTICE '📊 통계:';
   RAISE NOTICE '  - ticket_no가 있는 티켓: % 개', ticket_count;
   RAISE NOTICE '  - ticket_no가 없는 티켓: % 개', null_count;
+  RAISE NOTICE '  - 오늘 생성된 티켓: % 개', today_count;
   RAISE NOTICE '';
-  RAISE NOTICE '동작 방식:';
+  RAISE NOTICE '⚙️  동작 방식:';
   RAISE NOTICE '  - 새 티켓 생성 시 자동으로 ticket_no 생성';
   RAISE NOTICE '  - 형식: YYMMDD-NNNN (예: 260120-0001)';
   RAISE NOTICE '  - 매일 0001부터 순차 증가';
+  RAISE NOTICE '  - 트리거: trigger_auto_generate_ticket_no';
   RAISE NOTICE '';
   RAISE NOTICE '⚠️  "ticket_no is ambiguous" 오류 해결:';
-  RAISE NOTICE '  - SQL 쿼리에서 tasks.ticket_no 형태로 테이블명을 명시하세요';
-  RAISE NOTICE '  - 예: SELECT tasks.ticket_no FROM tasks ...';
+  RAISE NOTICE '  - TypeScript 코드에서는 테이블명 명시 불필요';
+  RAISE NOTICE '  - Supabase는 자동으로 기본 테이블 컬럼 인식';
+  RAISE NOTICE '  - Raw SQL에서는 tasks.ticket_no 형태로 명시';
   RAISE NOTICE '';
+  RAISE NOTICE '✅ 설정 완료! 이제 새 티켓 생성 시 자동으로 번호가 부여됩니다.';
   RAISE NOTICE '================================================================';
+  RAISE NOTICE '';
 END $$;
 
--- 최근 생성된 티켓 5개의 ticket_no 표시
+-- ================================================================
+-- PART 7: 최근 티켓 확인 (선택사항)
+-- ================================================================
+
+-- 주석을 해제하면 최근 티켓 5개를 확인할 수 있습니다
+/*
 SELECT 
   id,
   ticket_no,
-  created_at,
-  status
+  status,
+  created_at
 FROM tasks
 ORDER BY created_at DESC
 LIMIT 5;
+*/
