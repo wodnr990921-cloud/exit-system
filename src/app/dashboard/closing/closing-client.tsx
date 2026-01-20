@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { UserPlus, X, CheckCircle2 } from "lucide-react"
 
 interface Task {
   id: string
@@ -88,6 +89,13 @@ export default function ClosingClient() {
   const [taskDescription, setTaskDescription] = useState("")
   const [taskAmount, setTaskAmount] = useState("")
   const [creating, setCreating] = useState(false)
+
+  // 신규 회원 등록 관련 state
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
+  const [newCustomerName, setNewCustomerName] = useState("")
+  const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
+  const [newCustomerPhone, setNewCustomerPhone] = useState("")
+  const [newCustomerAddress, setNewCustomerAddress] = useState("")
 
   useEffect(() => {
     loadTasks()
@@ -295,6 +303,47 @@ export default function ClosingClient() {
     } catch (error: any) {
       console.error("Error searching customers:", error)
       setSearchResults([])
+    }
+  }
+
+  // 신규 회원 등록
+  const handleRegisterNewCustomer = async () => {
+    if (!newCustomerName.trim() || !newCustomerMemberNumber.trim()) {
+      setError("이름과 회원번호는 필수입니다.")
+      return
+    }
+
+    try {
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("customers")
+        .insert({
+          name: newCustomerName.trim(),
+          member_number: newCustomerMemberNumber.trim(),
+          phone: newCustomerPhone.trim() || null,
+          address: newCustomerAddress.trim() || null,
+        })
+        .select()
+        .single()
+
+      if (customerError) throw customerError
+
+      setSelectedCustomer({
+        id: newCustomer.id,
+        name: newCustomer.name,
+        member_number: newCustomer.member_number,
+      })
+
+      setShowNewCustomerForm(false)
+      setNewCustomerName("")
+      setNewCustomerMemberNumber("")
+      setNewCustomerPhone("")
+      setNewCustomerAddress("")
+      setSearchQuery("")
+
+      setSuccess(`${newCustomer.name} (${newCustomer.member_number}) 회원이 등록되었습니다.`)
+    } catch (error: any) {
+      console.error("Register customer error:", error)
+      setError(error.message || "회원 등록 중 오류가 발생했습니다.")
     }
   }
 
@@ -627,7 +676,18 @@ export default function ClosingClient() {
             <div className="space-y-4 py-4">
               {/* 회원 검색 */}
               <div className="space-y-2">
-                <Label htmlFor="customer-search">회원 검색</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="customer-search">회원 검색</Label>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                    className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <UserPlus className="w-3 h-3 mr-1" />
+                    신규 회원 등록
+                  </Button>
+                </div>
                 <Input
                   id="customer-search"
                   placeholder="회원명 또는 회원번호 입력"
@@ -683,6 +743,76 @@ export default function ClosingClient() {
                       </Button>
                     </div>
                   </div>
+                )}
+
+                {/* 신규 회원 등록 폼 */}
+                {showNewCustomerForm && (
+                  <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-green-900 dark:text-green-100">
+                          ✨ 신규 회원 등록
+                        </h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowNewCustomerForm(false)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm">이름 *</Label>
+                        <Input
+                          value={newCustomerName}
+                          onChange={(e) => setNewCustomerName(e.target.value)}
+                          placeholder="홍길동"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm">회원번호 *</Label>
+                        <Input
+                          value={newCustomerMemberNumber}
+                          onChange={(e) => setNewCustomerMemberNumber(e.target.value)}
+                          placeholder="M001"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm">전화번호</Label>
+                        <Input
+                          value={newCustomerPhone}
+                          onChange={(e) => setNewCustomerPhone(e.target.value)}
+                          placeholder="010-1234-5678"
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-sm">주소</Label>
+                        <Input
+                          value={newCustomerAddress}
+                          onChange={(e) => setNewCustomerAddress(e.target.value)}
+                          placeholder="서울시..."
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <Button
+                        onClick={handleRegisterNewCustomer}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        size="sm"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        회원 등록 및 선택
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
 
