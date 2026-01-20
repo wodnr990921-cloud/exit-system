@@ -22,32 +22,42 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const formData = await request.formData()
-    const imageFile = formData.get("image") as File
-    const detectImageType = formData.get("detectImageType") === "true"
-    const detectProhibited = formData.get("detectProhibited") === "true"
-    const extractHandwriting = formData.get("extractHandwriting") === "true"
+    const contentType = request.headers.get("content-type") || ""
+    let imageFile: File | null = null
+    let imageUrl: string | null = null
+    let detectImageType = true
+    let detectProhibited = true
+    let extractHandwriting = true
 
-    if (!imageFile) {
+    // Check if request is FormData or JSON
+    if (contentType.includes("multipart/form-data")) {
+      // FormData (direct file upload)
+      const formData = await request.formData()
+      imageFile = formData.get("image") as File
+      detectImageType = formData.get("detectImageType") === "true"
+      detectProhibited = formData.get("detectProhibited") === "true"
+      extractHandwriting = formData.get("extractHandwriting") === "true"
+    } else if (contentType.includes("application/json")) {
+      // JSON (image URL)
+      const body = await request.json()
+      imageUrl = body.imageUrl
+      detectImageType = body.detectImageType !== false
+      detectProhibited = body.detectProhibited !== false
+      extractHandwriting = body.extractHandwriting !== false
+    } else {
       return NextResponse.json(
-        { success: false, error: "이미지 파일이 필요합니다." },
+        { 
+          success: false, 
+          error: "Invalid Content-Type. Use multipart/form-data or application/json.",
+          details: `Received: ${contentType}`
+        },
         { status: 400 }
       )
     }
 
-    // 파일 크기 검증 (10MB)
-    if (imageFile.size > 10 * 1024 * 1024) {
+    if (!imageFile && !imageUrl) {
       return NextResponse.json(
-        { success: false, error: "파일 크기는 10MB를 초과할 수 없습니다." },
-        { status: 400 }
-      )
-    }
-
-    // 파일 형식 검증
-    const supportedFormats = ["image/jpeg", "image/jpg", "image/png", "image/heic"]
-    if (!supportedFormats.includes(imageFile.type.toLowerCase())) {
-      return NextResponse.json(
-        { success: false, error: "지원하지 않는 파일 형식입니다. (JPG, PNG, HEIC만 지원)" },
+        { success: false, error: "이미지 파일 또는 이미지 URL이 필요합니다." },
         { status: 400 }
       )
     }
@@ -61,10 +71,55 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 이미지를 Base64로 변환
-    const arrayBuffer = await imageFile.arrayBuffer()
-    const base64Image = Buffer.from(arrayBuffer).toString("base64")
-    const mimeType = imageFile.type || "image/jpeg"
+    let base64Image: string
+    let mimeType: string
+
+    if (imageFile) {
+      // FormData: Process file directly
+      // 파일 크기 검증 (10MB)
+      if (imageFile.size > 10 * 1024 * 1024) {
+        return NextResponse.json(
+          { success: false, error: "파일 크기는 10MB를 초과할 수 없습니다." },
+          { status: 400 }
+        )
+      }
+
+      // 파일 형식 검증
+      const supportedFormats = ["image/jpeg", "image/jpg", "image/png", "image/heic"]
+      if (!supportedFormats.includes(imageFile.type.toLowerCase())) {
+        return NextResponse.json(
+          { success: false, error: "지원하지 않는 파일 형식입니다. (JPG, PNG, HEIC만 지원)" },
+          { status: 400 }
+        )
+      }
+
+      // 이미지를 Base64로 변환
+      const arrayBuffer = await imageFile.arrayBuffer()
+      base64Image = Buffer.from(arrayBuffer).toString("base64")
+      mimeType = imageFile.type || "image/jpeg"
+    } else if (imageUrl) {
+      // JSON: Download image from URL
+      console.log("[OCR] Downloading image from URL:", imageUrl)
+      
+      const imageResponse = await fetch(imageUrl)
+      if (!imageResponse.ok) {
+        return NextResponse.json(
+          { success: false, error: "이미지 다운로드 실패", details: imageResponse.statusText },
+          { status: 400 }
+        )
+      }
+
+      const arrayBuffer = await imageResponse.arrayBuffer()
+      base64Image = Buffer.from(arrayBuffer).toString("base64")
+      mimeType = imageResponse.headers.get("content-type") || "image/jpeg"
+      
+      console.log("[OCR] Image downloaded successfully, size:", arrayBuffer.byteLength)
+    } else {
+      return NextResponse.json(
+        { success: false, error: "이미지 파일 또는 URL이 필요합니다." },
+        { status: 400 }
+      )
+    }
 
     // 1단계: 이미지 타입 감지
     const imageType = detectImageType
