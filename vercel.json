@@ -9,16 +9,8 @@
   },
   "crons": [
     {
-      "path": "/api/sync-sports",
-      "schedule": "0 0,5,12 * * *"
-    },
-    {
-      "path": "/api/sync-domestic",
-      "schedule": "0 */6 * * *"
-    },
-    {
       "path": "/api/sync-odds-api",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }
