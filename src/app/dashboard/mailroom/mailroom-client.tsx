@@ -815,7 +815,7 @@ export default function MailroomClient() {
               <Button
                 onClick={handleBatchAssignment}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 선택한 편지 배정하기
@@ -824,6 +824,7 @@ export default function MailroomClient() {
                 onClick={clearSelection}
                 size="sm"
                 variant="outline"
+                className="text-gray-900 dark:text-gray-100"
               >
                 <X className="w-4 h-4 mr-2" />
                 선택 취소
@@ -853,7 +854,7 @@ export default function MailroomClient() {
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               size="sm"
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 text-gray-900 dark:text-gray-900"
             >
               {uploading ? (
                 <>
@@ -1089,6 +1090,7 @@ export default function MailroomClient() {
                     variant="outline"
                     size="sm"
                     onClick={() => transformRef.current?.zoomIn()}
+                    className="text-gray-900 dark:text-gray-100"
                   >
                     <ZoomIn className="w-4 h-4" />
                   </Button>
@@ -1096,6 +1098,7 @@ export default function MailroomClient() {
                     variant="outline"
                     size="sm"
                     onClick={() => transformRef.current?.zoomOut()}
+                    className="text-gray-900 dark:text-gray-100"
                   >
                     <ZoomOut className="w-4 h-4" />
                   </Button>
@@ -1103,6 +1106,7 @@ export default function MailroomClient() {
                     variant="outline"
                     size="sm"
                     onClick={() => setRotation((prev) => (prev + 90) % 360)}
+                    className="text-gray-900 dark:text-gray-100"
                   >
                     <RotateCw className="w-4 h-4" />
                   </Button>
@@ -1110,6 +1114,7 @@ export default function MailroomClient() {
                     variant="outline"
                     size="sm"
                     onClick={() => transformRef.current?.resetTransform()}
+                    className="text-gray-900 dark:text-gray-100"
                   >
                     <Move className="w-4 h-4" />
                   </Button>
@@ -1119,7 +1124,7 @@ export default function MailroomClient() {
                 {selectedLetters.some((l) => l.ocr_text) && (
                   <Card>
                     <CardContent className="p-4">
-                      <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <h4 className="font-bold mb-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
                         <MessageSquare className="w-4 h-4" />
                         OCR 추출 내용
                         <Badge variant="secondary" className="ml-auto">
@@ -1156,7 +1161,7 @@ export default function MailroomClient() {
                       <div className="flex items-start gap-2">
                         <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                          <h4 className="font-semibold text-red-900 dark:text-red-100 mb-2">
+                          <h4 className="font-bold text-red-900 dark:text-red-100 mb-3 bg-red-100 dark:bg-red-900/30 px-3 py-2 rounded-md">
                             ⚠️ 금지어 감지됨
                           </h4>
                           {selectedLetters.map((letter, index) => (
@@ -1189,7 +1194,7 @@ export default function MailroomClient() {
                 {/* Customer Search */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-semibold flex items-center gap-2">
+                    <Label className="text-sm font-bold flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
                       <User className="w-4 h-4" />
                       회원 검색
                     </Label>
@@ -1201,7 +1206,7 @@ export default function MailroomClient() {
                           setSelectedCustomer({ id: "unknown", member_number: "미등록", name: "미등록 회원" })
                           setCustomerSearch("")
                         }}
-                        className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                        className="h-7 text-xs text-gray-900 dark:text-gray-100 hover:bg-amber-50"
                       >
                         <UserPlus className="w-3 h-3 mr-1" />
                         회원 없이 진행
@@ -1265,6 +1270,7 @@ export default function MailroomClient() {
                             setSelectedCustomer(null)
                             setCustomerSearch("")
                           }}
+                          className="text-gray-900 dark:text-gray-100"
                         >
                           변경
                         </Button>
@@ -1275,7 +1281,7 @@ export default function MailroomClient() {
 
                 {/* Staff Assignment */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold flex items-center gap-2">
+                  <Label className="text-sm font-bold flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
                     <User className="w-4 h-4" />
                     담당자 지정
                   </Label>
@@ -1377,6 +1383,7 @@ export default function MailroomClient() {
                                   onClick={() =>
                                     setSelectedBooks(selectedBooks.filter((b) => b.id !== book.id))
                                   }
+                                  className="text-gray-900 dark:text-gray-100"
                                 >
                                   <X className="w-4 h-4" />
                                 </Button>
@@ -1418,6 +1425,7 @@ export default function MailroomClient() {
                             size="icon"
                             variant="outline"
                             onClick={() => setPurchaseItems([...purchaseItems, { description: "", amount: 0 }])}
+                            className="text-gray-900 dark:text-gray-100"
                           >
                             +
                           </Button>
@@ -1426,6 +1434,7 @@ export default function MailroomClient() {
                             size="icon"
                             variant="outline"
                             onClick={() => setPurchaseItems(purchaseItems.filter((_, i) => i !== index))}
+                            className="text-gray-900 dark:text-gray-100"
                           >
                             <X className="w-4 h-4" />
                           </Button>
@@ -1499,7 +1508,7 @@ export default function MailroomClient() {
                 <Button
                   onClick={handleSaveAndNext}
                   disabled={processing || !selectedCustomer || !selectedStaff}
-                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-gray-900 dark:text-gray-900"
                   size="lg"
                 >
                   {processing ? (
