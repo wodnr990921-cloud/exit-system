@@ -86,6 +86,7 @@ export default function DashboardClient() {
   })
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([])
   const [loading, setLoading] = useState(true)
+  const [myTasks, setMyTasks] = useState<any[]>([])
 
   useEffect(() => {
     loadCurrentUser()
@@ -96,6 +97,8 @@ export default function DashboardClient() {
       loadDashboardStats()
       if (currentUser.role === "ceo" || currentUser.role === "admin" || currentUser.role === "operator") {
         loadPendingApprovals()
+      } else if (currentUser.role === "staff" || currentUser.role === "employee") {
+        loadMyTasks()
       }
     }
   }, [currentUser])
@@ -258,13 +261,14 @@ export default function DashboardClient() {
         const { count: myTasksCount } = await supabase
           .from("tasks")
           .select("*", { count: "exact", head: true })
-          .eq("assignee_id", currentUser.id)
-          .eq("status", "assigned")
+          .eq("assigned_to", currentUser.id)
+          .not("status", "in", '("completed","closed")')
 
         const { count: myProcessedCount } = await supabase
           .from("tasks")
           .select("*", { count: "exact", head: true })
-          .eq("assignee_id", currentUser.id)
+          .eq("assigned_to", currentUser.id)
+          .in("status", ["completed", "closed"])
           .gte("created_at", `${today}T00:00:00`)
           .lte("created_at", `${today}T23:59:59`)
 
@@ -294,6 +298,34 @@ export default function DashboardClient() {
       }
     } catch (error) {
       console.error("Error loading dashboard stats:", error)
+    }
+  }
+
+  const loadMyTasks = async () => {
+    if (!currentUser) return
+
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          ticket_no,
+          title,
+          status,
+          created_at,
+          customer:customers(name, member_number)
+        `)
+        .eq("assigned_to", currentUser.id)
+        .not("status", "in", '("completed","closed")')
+        .order("created_at", { ascending: false })
+        .limit(10)
+
+      if (error) throw error
+
+      setMyTasks(data || [])
+    } catch (error) {
+      console.error("Error loading my tasks:", error)
+      setMyTasks([])
     }
   }
 
@@ -591,6 +623,83 @@ export default function DashboardClient() {
                 </Button>
               </div>
             </div>
+
+            {/* 배당된 티켓 목록 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>📋 배당된 티켓 (마감 전)</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push("/dashboard/intake")}
+                    className="text-xs"
+                  >
+                    전체 보기 →
+                  </Button>
+                </CardTitle>
+                <CardDescription>내게 배당된 진행 중인 티켓입니다</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {myTasks.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>배당된 티켓이 없습니다</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {myTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        onClick={() => router.push("/dashboard/intake")}
+                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
+                              {task.ticket_no || task.id.slice(0, 8)}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              task.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                : task.status === "assigned"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                                : task.status === "in_progress"
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
+                            }`}>
+                              {task.status === "pending"
+                                ? "대기"
+                                : task.status === "assigned"
+                                ? "배정됨"
+                                : task.status === "in_progress"
+                                ? "진행중"
+                                : task.status}
+                            </span>
+                          </div>
+                          <p className="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-1">
+                            {task.title}
+                          </p>
+                          {task.customer && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {task.customer.member_number} - {task.customer.name}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(task.created_at).toLocaleDateString("ko-KR", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </main>
       </div>
