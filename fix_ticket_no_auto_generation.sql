@@ -40,7 +40,7 @@ RETURNS TEXT AS $$
 DECLARE
   today TEXT;
   seq_num INTEGER;
-  ticket_no TEXT;
+  new_ticket_no TEXT;
   max_attempts INTEGER := 100;
   attempt INTEGER := 0;
 BEGIN
@@ -51,21 +51,21 @@ BEGIN
     -- 오늘 날짜로 시작하는 티켓 중 가장 큰 번호 찾기
     SELECT COALESCE(MAX(
       CASE
-        WHEN ticket_no ~ ('^' || today || '-[0-9]+$')
-        THEN CAST(SUBSTRING(ticket_no FROM '[0-9]+$') AS INTEGER)
+        WHEN tasks.ticket_no ~ ('^' || today || '-[0-9]+$')
+        THEN CAST(SUBSTRING(tasks.ticket_no FROM '[0-9]+$') AS INTEGER)
         ELSE 0
       END
     ), 0) + 1
     INTO seq_num
     FROM tasks
-    WHERE ticket_no LIKE (today || '-%');
+    WHERE tasks.ticket_no LIKE (today || '-%');
 
     -- 티켓 번호 생성: YYMMDD-NNNN (예: 260120-0001)
-    ticket_no := today || '-' || LPAD(seq_num::TEXT, 4, '0');
+    new_ticket_no := today || '-' || LPAD(seq_num::TEXT, 4, '0');
 
     -- 중복 체크 (race condition 방지)
-    IF NOT EXISTS (SELECT 1 FROM tasks WHERE tasks.ticket_no = ticket_no) THEN
-      RETURN ticket_no;
+    IF NOT EXISTS (SELECT 1 FROM tasks WHERE tasks.ticket_no = new_ticket_no) THEN
+      RETURN new_ticket_no;
     END IF;
 
     -- 무한 루프 방지
