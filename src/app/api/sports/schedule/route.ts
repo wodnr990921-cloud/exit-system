@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/utils/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 
 // 리그명 매핑 (DB의 sport_key → 한글명)
 const LEAGUE_NAMES: Record<string, string> = {
@@ -33,7 +33,7 @@ const LEAGUE_NAMES: Record<string, string> = {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const sportKey = searchParams.get('sport') // 특정 리그만 조회 (선택사항)
     const daysAhead = parseInt(searchParams.get('daysAhead') || '30')
