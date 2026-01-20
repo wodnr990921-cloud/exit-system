@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -105,8 +106,12 @@ export default function IntakeClient() {
   const [newComment, setNewComment] = useState("")
   const [commentType, setCommentType] = useState<'internal' | 'reply'>('internal')
   const [addingComment, setAddingComment] = useState(false)
+
+  // 답변 작성 관련 state
+  const [taskReplyText, setTaskReplyText] = useState("")
   
   const supabase = createClient()
+  const { toast } = useToast()
 
   useEffect(() => {
     loadAllTasks()
@@ -603,11 +608,15 @@ export default function IntakeClient() {
               <div className="space-y-6 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">티켓번호</Label>
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">🎫 티켓번호</Label>
+                    </div>
                     <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-50">{formatTaskId(selectedTask.id)}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">상태</Label>
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📌 상태</Label>
+                    </div>
                     <div className="mt-1">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(selectedTask.status)}`}>
                         {getStatusLabel(selectedTask.status)}
@@ -615,30 +624,40 @@ export default function IntakeClient() {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">회원</Label>
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
+                    </div>
                     <p className="mt-1 text-base text-gray-900 dark:text-gray-50">
                       {selectedTask.customer ? `${selectedTask.customer.member_number} - ${selectedTask.customer.name}` : "-"}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">담당자</Label>
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👨‍💼 담당자</Label>
+                    </div>
                     <p className="mt-1 text-base text-gray-900 dark:text-gray-50">
                       {selectedTask.assigned_to_user?.name || selectedTask.assigned_to_user?.username || "-"}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">등록일시</Label>
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📅 등록일시</Label>
+                    </div>
                     <p className="mt-1 text-base text-gray-900 dark:text-gray-50">{formatDate(selectedTask.created_at)}</p>
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">제목</Label>
+                  <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📋 제목</Label>
+                  </div>
                   <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-50">{selectedTask.title}</p>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-gray-500 dark:text-gray-400">내용</Label>
+                  <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 내용</Label>
+                  </div>
                   <p className="mt-1 text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                     {selectedTask.description || "-"}
                   </p>
@@ -685,7 +704,9 @@ export default function IntakeClient() {
                 )}
 
                 <div className="border-t pt-4 space-y-4">
-                  <Label className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 block">댓글 / 답글</Label>
+                  <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💬 댓글 / 답글</Label>
+                  </div>
                   
                   {/* 댓글 목록 */}
                   {loadingComments ? (
@@ -735,7 +756,7 @@ export default function IntakeClient() {
                         variant={commentType === 'internal' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setCommentType('internal')}
-                        className={commentType === 'internal' ? 'bg-gray-600' : ''}
+                        className={commentType === 'internal' ? 'bg-gray-600 text-white font-medium' : 'text-gray-900 dark:text-gray-100 font-medium'}
                       >
                         💬 댓글 (내부)
                       </Button>
@@ -744,7 +765,7 @@ export default function IntakeClient() {
                         variant={commentType === 'reply' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setCommentType('reply')}
-                        className={commentType === 'reply' ? 'bg-blue-600' : ''}
+                        className={commentType === 'reply' ? 'bg-blue-600 text-white font-medium' : 'text-gray-900 dark:text-gray-100 font-medium'}
                       >
                         📧 답글 (회원)
                       </Button>
@@ -763,18 +784,67 @@ export default function IntakeClient() {
                     <Button
                       onClick={handleAddComment}
                       disabled={addingComment || !newComment.trim()}
-                      className={commentType === 'reply' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'}
+                      className={commentType === 'reply' ? 'bg-blue-600 hover:bg-blue-700 text-white font-medium' : 'bg-gray-600 hover:bg-gray-700 text-white font-medium'}
                       size="sm"
                     >
                       {addingComment ? "추가 중..." : commentType === 'reply' ? "답글 발송" : "댓글 추가"}
                     </Button>
                   </div>
                 </div>
+
+                {/* 답변 작성 (task_items에 저장) */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">✍️ 답변 작성</Label>
+                  </div>
+                  <Textarea
+                    placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
+                    value={taskReplyText}
+                    onChange={(e) => setTaskReplyText(e.target.value)}
+                    rows={3}
+                    className="border-gray-300 dark:border-gray-700"
+                  />
+                  <Button
+                    onClick={async () => {
+                      if (!selectedTask || !taskReplyText.trim()) return
+
+                      try {
+                        const { error } = await supabase.from("task_items").insert({
+                          task_id: selectedTask.id,
+                          category: "답변",
+                          description: taskReplyText.trim(),
+                          amount: 0,
+                          status: "approved",
+                        })
+
+                        if (error) throw error
+
+                        setTaskReplyText("")
+                        toast({
+                          title: "답변 저장 완료",
+                          description: "답변이 티켓에 저장되었습니다.",
+                        })
+                      } catch (error: any) {
+                        console.error("Save reply error:", error)
+                        toast({
+                          variant: "destructive",
+                          title: "오류",
+                          description: error.message || "답변 저장 중 오류가 발생했습니다.",
+                        })
+                      }
+                    }}
+                    disabled={!taskReplyText.trim()}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                  >
+                    답변 저장
+                  </Button>
+                </div>
               </div>
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)} className="border-gray-300 dark:border-gray-700">
+              <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)} className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium">
                 닫기
               </Button>
             </DialogFooter>

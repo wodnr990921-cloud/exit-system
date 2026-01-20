@@ -363,6 +363,7 @@ export default function DashboardClient() {
   const allMenuItems = [
     { id: "mailroom", label: "📸 우편실", path: "/dashboard/mailroom", requiredRole: ["operator", "ceo", "admin"], color: "blue" },
     { id: "qa", label: "💬 문의/답변", path: "/dashboard/qa", requiredRole: null, color: "blue" },
+    { id: "closing", label: "📊 일일마감", path: "/dashboard/closing", requiredRole: ["operator", "ceo", "admin"], color: "red" },
     { id: "procurement", label: "📦 발주업무", path: "/dashboard/logistics", requiredRole: null, color: "blue" },
     { id: "betting", label: "🎯 배팅업무", path: "/dashboard/sports", requiredRole: ["operator", "ceo", "admin"], color: "green" },
     { id: "operations", label: "💼 업무관리", path: "/dashboard/operations", requiredRole: ["operator", "ceo", "admin"], color: "emerald" },
