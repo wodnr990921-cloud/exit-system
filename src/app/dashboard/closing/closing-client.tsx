@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -15,6 +16,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Task {
   id: string
@@ -39,6 +55,12 @@ interface Task {
   }>
 }
 
+interface Customer {
+  id: string
+  name: string
+  member_number: string
+}
+
 export default function ClosingClient() {
   const router = useRouter()
   const supabase = createClient()
@@ -56,6 +78,16 @@ export default function ClosingClient() {
     bettingPayout: number
     netProfit: number
   } | null>(null)
+
+  // 신규 티켓 생성 관련 state
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<Customer[]>([])
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [taskCategory, setTaskCategory] = useState<string>("문의")
+  const [taskDescription, setTaskDescription] = useState("")
+  const [taskAmount, setTaskAmount] = useState("")
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     loadTasks()
@@ -241,6 +273,121 @@ export default function ClosingClient() {
     return amount.toLocaleString("ko-KR")
   }
 
+  // 회원 검색
+  const handleSearchCustomer = async (query: string) => {
+    setSearchQuery(query)
+
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, member_number")
+        .or(`name.ilike.%${query}%,member_number.ilike.%${query}%`)
+        .limit(10)
+
+      if (error) throw error
+
+      setSearchResults(data || [])
+    } catch (error: any) {
+      console.error("Error searching customers:", error)
+      setSearchResults([])
+    }
+  }
+
+  // 신규 티켓 생성
+  const handleCreateTicket = async () => {
+    if (!selectedCustomer) {
+      setError("회원을 선택해주세요.")
+      return
+    }
+
+    if (!taskDescription.trim()) {
+      setError("요청 내용을 입력해주세요.")
+      return
+    }
+
+    const amount = parseFloat(taskAmount) || 0
+
+    setCreating(true)
+    setError(null)
+
+    try {
+      // 1. Task 생성
+      const { data: taskData, error: taskError } = await supabase
+        .from("tasks")
+        .insert({
+          customer_id: selectedCustomer.id,
+          member_id: selectedCustomer.id,
+          status: "pending",
+          total_amount: amount,
+        })
+        .select()
+        .single()
+
+      if (taskError) throw taskError
+
+      // 2. Task Item 생성
+      const { error: itemError } = await supabase
+        .from("task_items")
+        .insert({
+          task_id: taskData.id,
+          category: taskCategory,
+          description: taskDescription.trim(),
+          amount: amount,
+          status: "pending",
+        })
+
+      if (itemError) throw itemError
+
+      // 3. Task 금액 업데이트
+      const { error: updateError } = await supabase
+        .from("tasks")
+        .update({ total_amount: amount })
+        .eq("id", taskData.id)
+
+      if (updateError) throw updateError
+
+      setSuccess(`티켓이 생성되었습니다. (티켓번호: ${taskData.ticket_no || taskData.id.substring(0, 8).toUpperCase()})`)
+      
+      // 초기화
+      setShowCreateDialog(false)
+      setSelectedCustomer(null)
+      setSearchQuery("")
+      setSearchResults([])
+      setTaskCategory("문의")
+      setTaskDescription("")
+      setTaskAmount("")
+
+      // 티켓 목록 새로고침
+      loadTasks()
+
+      setTimeout(() => {
+        setSuccess(null)
+      }, 5000)
+    } catch (error: any) {
+      console.error("Error creating ticket:", error)
+      setError(error.message || "티켓 생성에 실패했습니다.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  // Dialog 닫을 때 초기화
+  const handleCloseDialog = () => {
+    setShowCreateDialog(false)
+    setSelectedCustomer(null)
+    setSearchQuery("")
+    setSearchResults([])
+    setTaskCategory("문의")
+    setTaskDescription("")
+    setTaskAmount("")
+    setError(null)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
@@ -258,6 +405,12 @@ export default function ClosingClient() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">일일 마감</h1>
           <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              + 신규 티켓 생성
+            </Button>
             <Button
               variant="outline"
               onClick={loadTasks}
@@ -460,6 +613,143 @@ export default function ClosingClient() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 신규 티켓 생성 Dialog */}
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>신규 티켓 생성</DialogTitle>
+              <DialogDescription>
+                문의답변 티켓을 새로 생성합니다.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* 회원 검색 */}
+              <div className="space-y-2">
+                <Label htmlFor="customer-search">회원 검색</Label>
+                <Input
+                  id="customer-search"
+                  placeholder="회원명 또는 회원번호 입력"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchCustomer(e.target.value)}
+                  className="border-gray-300 dark:border-gray-700"
+                />
+                
+                {/* 검색 결과 */}
+                {searchResults.length > 0 && (
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-md max-h-[200px] overflow-y-auto">
+                    {searchResults.map((customer) => (
+                      <div
+                        key={customer.id}
+                        onClick={() => {
+                          setSelectedCustomer(customer)
+                          setSearchQuery(customer.name)
+                          setSearchResults([])
+                        }}
+                        className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-0"
+                      >
+                        <div className="font-medium">{customer.name}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {customer.member_number}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 선택된 회원 */}
+                {selectedCustomer && searchResults.length === 0 && (
+                  <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-blue-900 dark:text-blue-100">
+                          {selectedCustomer.name}
+                        </div>
+                        <div className="text-sm text-blue-700 dark:text-blue-300">
+                          {selectedCustomer.member_number}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedCustomer(null)
+                          setSearchQuery("")
+                        }}
+                        className="text-blue-600 dark:text-blue-400"
+                      >
+                        변경
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 카테고리 선택 */}
+              <div className="space-y-2">
+                <Label htmlFor="category">카테고리</Label>
+                <Select value={taskCategory} onValueChange={setTaskCategory}>
+                  <SelectTrigger className="border-gray-300 dark:border-gray-700">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="문의">문의</SelectItem>
+                    <SelectItem value="입금">입금</SelectItem>
+                    <SelectItem value="출금">출금</SelectItem>
+                    <SelectItem value="환불">환불</SelectItem>
+                    <SelectItem value="상품">상품</SelectItem>
+                    <SelectItem value="배팅">배팅</SelectItem>
+                    <SelectItem value="기타">기타</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 요청 내용 */}
+              <div className="space-y-2">
+                <Label htmlFor="description">요청 내용</Label>
+                <Textarea
+                  id="description"
+                  placeholder="티켓 내용을 입력하세요"
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  className="min-h-[120px] border-gray-300 dark:border-gray-700"
+                />
+              </div>
+
+              {/* 금액 */}
+              <div className="space-y-2">
+                <Label htmlFor="amount">금액 (선택)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="0"
+                  value={taskAmount}
+                  onChange={(e) => setTaskAmount(e.target.value)}
+                  className="border-gray-300 dark:border-gray-700"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={handleCloseDialog}
+                disabled={creating}
+                className="border-gray-300 dark:border-gray-700"
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleCreateTicket}
+                disabled={!selectedCustomer || !taskDescription.trim() || creating}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {creating ? "생성 중..." : "티켓 생성"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
