@@ -1,73 +1,99 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+// 리그명 매핑 (DB의 sport_key → 한글명)
+const LEAGUE_NAMES: Record<string, string> = {
+  // 축구
+  'soccer_korea_kleague_1': 'K리그1',
+  'soccer_epl': 'EPL',
+  'soccer_spain_la_liga': '라리가',
+  'soccer_italy_serie_a': '세리에A',
+  'soccer_germany_bundesliga': '분데스리가',
+  'soccer_france_ligue_one': '리그앙',
+  'soccer_uefa_champs_league': 'UEFA 챔피언스리그',
+  'soccer_uefa_europa_league': 'UEFA 유로파리그',
+  'soccer_netherlands_eredivisie': '에레디비시',
+  'soccer_portugal_primeira_liga': '포르투갈 리그',
+  'soccer_brazil_campeonato': '브라질 리그',
+  'soccer_argentina_primera_division': '아르헨티나 리그',
+  'soccer_usa_mls': 'MLS',
+  // 농구
+  'basketball_nba': 'NBA',
+  'basketball_euroleague': '유로리그',
+  // 야구
+  'baseball_mlb': 'MLB',
+  // 아이스하키
+  'icehockey_nhl': 'NHL',
+}
 
 /**
- * 경기 일정 조회 API
- * - The Odds API에서 예정된 경기 일정 가져오기
- * - 자동으로 sports_matches에 저장 안 함 (sync-sports 사용)
+ * 경기 일정 조회 API (통합)
+ * - sports_matches 테이블에서 모든 리그의 예정된 경기 조회
+ * - 리그별 필터링 지원
  */
 export async function GET(request: NextRequest) {
   try {
-    const oddsApiKey = process.env.ODDS_API_KEY
-
-    if (!oddsApiKey) {
-      return NextResponse.json(
-        { error: "ODDS_API_KEY가 설정되지 않았습니다" },
-        { status: 500 }
-      )
-    }
-
     const { searchParams } = new URL(request.url)
-    const sport = searchParams.get('sport') || 'soccer_korea_kleague_1'
-    const daysAhead = searchParams.get('daysAhead') || '7'
+    const sportKey = searchParams.get('sport') // 특정 리그만 조회 (선택사항)
+    const daysAhead = parseInt(searchParams.get('daysAhead') || '30')
+    
+    // 현재 시간 (KST)
+    const now = new Date()
+    const futureDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000)
 
-    const baseUrl = "https://api.the-odds-api.com/v4/sports"
-    const url = `${baseUrl}/${sport}/odds?apiKey=${oddsApiKey}&regions=kr&markets=h2h&oddsFormat=decimal&dateFormat=iso&daysAhead=${daysAhead}`
+    // Supabase 쿼리 구성
+    let query = supabase
+      .from('sports_matches')
+      .select('*')
+      .eq('is_finished', false) // 종료되지 않은 경기만
+      .gte('commence_time', now.toISOString()) // 현재 이후 경기
+      .lte('commence_time', futureDate.toISOString()) // N일 이내 경기
+      .order('commence_time', { ascending: true })
 
-    console.log(`[Schedule] API 호출: ${sport}, ${daysAhead}일`)
-
-    const response = await fetch(url)
-
-    if (!response.ok) {
-      throw new Error(`The Odds API 오류: ${response.status} ${response.statusText}`)
+    // 특정 리그 필터
+    if (sportKey) {
+      query = query.eq('sport_key', sportKey)
     }
 
-    const data = await response.json()
+    const { data, error } = await query
 
-    // 데이터 변환
-    const schedule = data.map((game: any) => {
-      let oddsHome, oddsDraw, oddsAway
+    if (error) {
+      throw error
+    }
 
-      if (game.bookmakers && game.bookmakers.length > 0) {
-        const h2hMarket = game.bookmakers[0].markets.find((m: any) => m.key === 'h2h')
-        if (h2hMarket) {
-          const homeOutcome = h2hMarket.outcomes.find((o: any) => o.name === game.home_team)
-          const awayOutcome = h2hMarket.outcomes.find((o: any) => o.name === game.away_team)
-          const drawOutcome = h2hMarket.outcomes.find((o: any) => o.name === 'Draw')
+    // 데이터 변환 및 그룹화
+    const schedule = (data || []).map((match: any) => ({
+      id: match.id,
+      sportKey: match.sport_key,
+      sportTitle: LEAGUE_NAMES[match.sport_key] || match.sport_key,
+      commenceTime: match.commence_time,
+      homeTeam: match.home_team,
+      awayTeam: match.away_team,
+      oddsHome: match.odds_home,
+      oddsDraw: match.odds_draw,
+      oddsAway: match.odds_away,
+      bettingClosed: match.betting_closed || false,
+    }))
 
-          oddsHome = homeOutcome?.price
-          oddsAway = awayOutcome?.price
-          oddsDraw = drawOutcome?.price
-        }
-      }
-
-      return {
-        id: game.id,
-        sportKey: game.sport_key,
-        sportTitle: game.sport_title,
-        commenceTime: game.commence_time,
-        homeTeam: game.home_team,
-        awayTeam: game.away_team,
-        oddsHome,
-        oddsDraw,
-        oddsAway
-      }
+    // 리그별 통계
+    const leagueStats: Record<string, number> = {}
+    schedule.forEach((game: any) => {
+      leagueStats[game.sportTitle] = (leagueStats[game.sportTitle] || 0) + 1
     })
+
+    console.log(`[Schedule] 조회 완료: 총 ${schedule.length}개 경기`)
 
     return NextResponse.json({
       success: true,
-      sport,
+      sport: sportKey || 'all',
       count: schedule.length,
       schedule,
+      stats: leagueStats,
       message: `${schedule.length}개의 예정된 경기를 찾았습니다`
     })
 

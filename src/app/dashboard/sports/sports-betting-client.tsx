@@ -104,6 +104,7 @@ export default function SportsBettingClient() {
   const [activeTab, setActiveTab] = useState<"live" | "pending" | "finished" | "schedule">("live")
   const [syncing, setSyncing] = useState(false)
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([])
+  const [scheduleLeagueFilter, setScheduleLeagueFilter] = useState<string>("all") // 리그 필터
   
   // 선택된 경기 및 다이얼로그
   const [selectedMatch, setSelectedMatch] = useState<SportsMatch | null>(null)
@@ -203,21 +204,33 @@ export default function SportsBettingClient() {
     }
   }
 
-  // 경기 일정 로딩
+  // 경기 일정 로딩 (모든 리그)
   const loadSchedule = async () => {
     try {
-      const response = await fetch('/api/sports/schedule?sport=soccer_korea_kleague_1&daysAhead=30')
+      // 모든 리그의 경기 일정 조회 (30일 이내)
+      const response = await fetch('/api/sports/schedule?daysAhead=30')
       const data = await response.json()
 
       if (data.success) {
         setUpcomingMatches(data.schedule || [])
+        
+        // 리그별 통계 표시
+        const statsText = Object.entries(data.stats || {})
+          .map(([league, count]) => `${league}: ${count}개`)
+          .join(', ')
+        
         toast({
-          title: "경기 일정 로딩 완료",
-          description: `${data.count}개의 예정된 경기`,
+          title: "✅ 경기 일정 로딩 완료",
+          description: `총 ${data.count}개 경기 | ${statsText}`,
         })
       }
     } catch (error) {
       console.error("경기 일정 로딩 오류:", error)
+      toast({
+        title: "오류",
+        description: "경기 일정을 불러올 수 없습니다.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -654,31 +667,67 @@ export default function SportsBettingClient() {
                   <div className="text-center p-12">
                     <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p className="text-lg font-medium mb-2">경기 일정을 불러와주세요</p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      20개 리그 (K리그, EPL, 라리가, NBA, MLB 등) 30일 일정
+                    </p>
                     <Button onClick={loadSchedule} variant="outline" className="mt-4">
                       <Download className="w-4 h-4 mr-2" />
-                      일정 불러오기 (30일)
+                      전체 일정 불러오기
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold">예정된 경기 ({upcomingMatches.length}개)</h3>
-                      <Button onClick={loadSchedule} variant="outline" size="sm">
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        새로고침
-                      </Button>
+                    {/* 헤더 및 필터 */}
+                    <div className="flex justify-between items-center gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold mb-1">
+                          예정된 경기 ({scheduleLeagueFilter === "all" ? upcomingMatches.length : upcomingMatches.filter(m => m.sportTitle === scheduleLeagueFilter).length}개)
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {scheduleLeagueFilter === "all" ? "전체 리그" : scheduleLeagueFilter}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <select
+                          value={scheduleLeagueFilter}
+                          onChange={(e) => setScheduleLeagueFilter(e.target.value)}
+                          className="px-3 py-2 border rounded-md text-sm"
+                        >
+                          <option value="all">전체 리그</option>
+                          {Array.from(new Set(upcomingMatches.map(m => m.sportTitle))).sort().map(league => (
+                            <option key={league} value={league}>
+                              {league} ({upcomingMatches.filter(m => m.sportTitle === league).length})
+                            </option>
+                          ))}
+                        </select>
+                        <Button onClick={loadSchedule} variant="outline" size="sm">
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          새로고침
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* 경기 목록 (리그별 그룹화) */}
                     <div className="grid gap-4">
-                      {upcomingMatches.map((match, idx) => (
-                        <Card key={idx} className="border-gray-200 dark:border-gray-700">
+                      {upcomingMatches
+                        .filter(match => scheduleLeagueFilter === "all" || match.sportTitle === scheduleLeagueFilter)
+                        .map((match, idx) => (
+                        <Card key={idx} className={`border-gray-200 dark:border-gray-700 ${match.bettingClosed ? 'opacity-60' : ''}`}>
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <Badge variant="outline">{match.sportTitle || 'K리그1'}</Badge>
+                                  <Badge variant="outline" className="font-semibold">
+                                    {match.sportTitle || 'K리그1'}
+                                  </Badge>
                                   <span className="text-sm text-gray-500 font-mono">
                                     {formatTime(match.commenceTime)}
                                   </span>
+                                  {match.bettingClosed && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      배팅 마감
+                                    </Badge>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 text-lg">
                                   <span className="font-bold">{match.homeTeam}</span>
