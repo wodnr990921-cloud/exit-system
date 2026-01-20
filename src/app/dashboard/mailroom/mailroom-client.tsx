@@ -325,18 +325,7 @@ export default function MailroomClient() {
   }
 
   const handleLetterClick = (letter: Letter) => {
-    // 카드 클릭 시 토글 방식으로 선택/해제
-    const isSelected = selectedLetters.some((l) => l.id === letter.id)
-    
-    if (isSelected) {
-      setSelectedLetters(selectedLetters.filter((l) => l.id !== letter.id))
-    } else {
-      setSelectedLetters([...selectedLetters, letter])
-    }
-  }
-
-  const handleLetterDoubleClick = (letter: Letter) => {
-    // 더블클릭 시 해당 편지만 선택하고 바로 배정 Dialog 열기
+    // 카드 클릭 시 확대 팝업 열기
     setSelectedLetter(letter)
     setSelectedLetters([letter])
     setShowDialog(true)
@@ -842,7 +831,7 @@ export default function MailroomClient() {
             </>
           ) : (
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              💡 클릭하여 선택 | 더블클릭하여 바로 배정
+              💡 카드 클릭하여 확대 | 체크박스로 여러 개 선택
             </p>
           )}
         </div>
@@ -946,7 +935,6 @@ export default function MailroomClient() {
                       : "hover:border-blue-500"
                   }`}
                   onClick={() => handleLetterClick(letter)}
-                  onDoubleClick={() => handleLetterDoubleClick(letter)}
                 >
                   {/* Checkbox */}
                   <div
@@ -984,8 +972,8 @@ export default function MailroomClient() {
                   )}
 
                 <CardContent className="p-0">
-                  {/* Image Preview */}
-                  <div className="h-32 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  {/* Image Preview - Reduced size */}
+                  <div className="h-20 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                     <img
                       src={letter.file_url}
                       alt="Letter"
