@@ -28,6 +28,7 @@ import { X, UserPlus, CheckCircle2, ZoomIn, ImageIcon } from "lucide-react"
 
 interface Task {
   id: string
+  ticket_no?: string
   title: string
   description: string | null
   status: string
