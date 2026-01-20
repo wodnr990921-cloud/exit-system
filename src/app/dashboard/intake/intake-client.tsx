@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { X, UserPlus, CheckCircle2, ZoomIn, ImageIcon } from "lucide-react"
 
 interface Task {
   id: string
@@ -67,6 +68,14 @@ interface Task {
     name: string | null
     username: string
   } | null
+  letters?: Array<{
+    id: string
+    file_path: string
+    file_name: string
+    ocr_summary: string | null
+    ocr_image_type: string | null
+    created_at: string
+  }>
 }
 
 interface TaskComment {
@@ -109,6 +118,16 @@ export default function IntakeClient() {
 
   // 답변 작성 관련 state
   const [taskReplyText, setTaskReplyText] = useState("")
+
+  // 이미지 확대 state
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+
+  // 신규 회원 등록 state
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
+  const [newCustomerName, setNewCustomerName] = useState("")
+  const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
+  const [newCustomerPhone, setNewCustomerPhone] = useState("")
+  const [newCustomerAddress, setNewCustomerAddress] = useState("")
   
   const supabase = createClient()
   const { toast } = useToast()
@@ -255,7 +274,29 @@ export default function IntakeClient() {
   }
 
   const handleTaskClick = async (task: Task) => {
-    setSelectedTask(task)
+    // Load task with letters
+    try {
+      const { data: taskWithLetters, error } = await supabase
+        .from("tasks")
+        .select(`
+          *,
+          customer:customers(member_number, name, institution, prison_number),
+          user:users!tasks_user_id_fkey(name, username),
+          assigned_to_user:users!tasks_assigned_to_fkey(name, username),
+          items:task_items(*),
+          letters:letters(id, file_path, file_name, ocr_summary, ocr_image_type, created_at)
+        `)
+        .eq("id", task.id)
+        .single()
+
+      if (error) throw error
+
+      setSelectedTask(taskWithLetters as Task)
+    } catch (error) {
+      console.error("Error loading task details:", error)
+      setSelectedTask(task)
+    }
+
     setIsTaskDialogOpen(true)
     await loadTaskComments(task.id)
   }
@@ -280,6 +321,67 @@ export default function IntakeClient() {
       console.error("Error loading comments:", error)
     } finally {
       setLoadingComments(false)
+    }
+  }
+
+  // 신규 회원 등록
+  const handleRegisterNewCustomer = async () => {
+    if (!newCustomerName.trim() || !newCustomerMemberNumber.trim()) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "이름과 회원번호는 필수입니다.",
+      })
+      return
+    }
+
+    if (!selectedTask) return
+
+    try {
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("customers")
+        .insert({
+          name: newCustomerName.trim(),
+          member_number: newCustomerMemberNumber.trim(),
+          phone: newCustomerPhone.trim() || null,
+          address: newCustomerAddress.trim() || null,
+        })
+        .select()
+        .single()
+
+      if (customerError) throw customerError
+
+      // Update task with new customer
+      const { error: updateError } = await supabase
+        .from("tasks")
+        .update({
+          customer_id: newCustomer.id,
+          member_id: newCustomer.id,
+        })
+        .eq("id", selectedTask.id)
+
+      if (updateError) throw updateError
+
+      // Reload task
+      await handleTaskClick(selectedTask)
+
+      setShowNewCustomerForm(false)
+      setNewCustomerName("")
+      setNewCustomerMemberNumber("")
+      setNewCustomerPhone("")
+      setNewCustomerAddress("")
+
+      toast({
+        title: "회원 등록 완료",
+        description: `${newCustomer.name} (${newCustomer.member_number}) 회원이 등록되고 티켓에 연결되었습니다.`,
+      })
+    } catch (error: any) {
+      console.error("Register customer error:", error)
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "회원 등록 중 오류가 발생했습니다.",
+      })
     }
   }
 
@@ -605,62 +707,187 @@ export default function IntakeClient() {
             </DialogHeader>
 
             {selectedTask && (
-              <div className="space-y-6 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
-                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">🎫 티켓번호</Label>
+              <div className="space-y-4 py-4">
+                {/* 좌우 분할 레이아웃 */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* 좌측: 편지 사진 */}
+                  <div className="space-y-3">
+                    <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📷 편지 사진</Label>
                     </div>
-                    <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-50">{formatTaskId(selectedTask.id)}</p>
+                    {selectedTask.letters && selectedTask.letters.length > 0 ? (
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                        {selectedTask.letters.map((letter) => {
+                          const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/letters/${letter.file_path}`
+                          return (
+                            <div key={letter.id} className="relative group border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-400 transition-colors">
+                              <img
+                                src={imageUrl}
+                                alt={letter.file_name}
+                                className="w-full max-h-[200px] object-contain bg-gray-50 dark:bg-gray-900 cursor-pointer"
+                                onClick={() => setSelectedImage(imageUrl)}
+                              />
+                              <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                <ZoomIn className="w-3 h-3" />
+                                확대
+                              </div>
+                              {letter.ocr_summary && (
+                                <div className="p-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{letter.ocr_summary}</p>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-[200px] border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                        <ImageIcon className="w-12 h-12 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">편지 사진이 없습니다</p>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
-                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📌 상태</Label>
-                    </div>
-                    <div className="mt-1">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${getStatusColor(selectedTask.status)}`}>
-                        {getStatusLabel(selectedTask.status)}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
-                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
-                    </div>
-                    <p className="mt-1 text-base text-gray-900 dark:text-gray-50">
-                      {selectedTask.customer ? `${selectedTask.customer.member_number} - ${selectedTask.customer.name}` : "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
-                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👨‍💼 담당자</Label>
-                    </div>
-                    <p className="mt-1 text-base text-gray-900 dark:text-gray-50">
-                      {selectedTask.assigned_to_user?.name || selectedTask.assigned_to_user?.username || "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
-                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📅 등록일시</Label>
-                    </div>
-                    <p className="mt-1 text-base text-gray-900 dark:text-gray-50">{formatDate(selectedTask.created_at)}</p>
-                  </div>
-                </div>
 
-                <div>
-                  <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
-                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📋 제목</Label>
-                  </div>
-                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-50">{selectedTask.title}</p>
-                </div>
+                  {/* 우측: 티켓 정보 */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                          <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">🎫 티켓번호</Label>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-50">{formatTaskId(selectedTask.id)}</p>
+                      </div>
+                      <div>
+                        <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                          <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📌 상태</Label>
+                        </div>
+                        <div className="mt-1">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${getStatusColor(selectedTask.status)}`}>
+                            {getStatusLabel(selectedTask.status)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                <div>
-                  <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
-                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 내용</Label>
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
+                      </div>
+                      {selectedTask.customer ? (
+                        <p className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                          {selectedTask.customer.member_number} - {selectedTask.customer.name}
+                        </p>
+                      ) : (
+                        <div className="mt-1 space-y-2">
+                          <p className="text-sm text-red-600 dark:text-red-400">미등록 회원</p>
+                          {!showNewCustomerForm && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowNewCustomerForm(true)}
+                              className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <UserPlus className="w-3 h-3 mr-1" />
+                              신규 회원 등록
+                            </Button>
+                          )}
+                          {showNewCustomerForm && (
+                            <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20 p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-bold text-green-900 dark:text-green-100">✨ 신규 회원 등록</h4>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setShowNewCustomerForm(false)}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              <div className="space-y-1.5">
+                                <div>
+                                  <Label className="text-xs">이름 *</Label>
+                                  <Input
+                                    value={newCustomerName}
+                                    onChange={(e) => setNewCustomerName(e.target.value)}
+                                    placeholder="홍길동"
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">회원번호 *</Label>
+                                  <Input
+                                    value={newCustomerMemberNumber}
+                                    onChange={(e) => setNewCustomerMemberNumber(e.target.value)}
+                                    placeholder="M001"
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">전화번호</Label>
+                                  <Input
+                                    value={newCustomerPhone}
+                                    onChange={(e) => setNewCustomerPhone(e.target.value)}
+                                    placeholder="010-1234-5678"
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">주소</Label>
+                                  <Input
+                                    value={newCustomerAddress}
+                                    onChange={(e) => setNewCustomerAddress(e.target.value)}
+                                    placeholder="서울시..."
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                                <Button
+                                  onClick={handleRegisterNewCustomer}
+                                  className="w-full h-7 bg-green-600 hover:bg-green-700 text-white text-xs"
+                                  size="sm"
+                                >
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  회원 등록 및 연결
+                                </Button>
+                              </div>
+                            </Card>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👨‍💼 담당자</Label>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                        {selectedTask.assigned_to_user?.name || selectedTask.assigned_to_user?.username || "-"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📅 등록일시</Label>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-900 dark:text-gray-50">{formatDate(selectedTask.created_at)}</p>
+                    </div>
+
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📋 제목</Label>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-50">{selectedTask.title}</p>
+                    </div>
+
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 내용</Label>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+                        {selectedTask.description || "-"}
+                      </p>
+                    </div>
                   </div>
-                  <p className="mt-1 text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {selectedTask.description || "-"}
-                  </p>
                 </div>
 
                 {/* 배팅 정보 (있는 경우) */}
@@ -702,6 +929,55 @@ export default function IntakeClient() {
                     </div>
                   </div>
                 )}
+
+                {/* 답변 작성 (task_items에 저장) */}
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">✍️ 답변 작성</Label>
+                  </div>
+                  <Textarea
+                    placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
+                    value={taskReplyText}
+                    onChange={(e) => setTaskReplyText(e.target.value)}
+                    rows={3}
+                    className="border-gray-300 dark:border-gray-700"
+                  />
+                  <Button
+                    onClick={async () => {
+                      if (!selectedTask || !taskReplyText.trim()) return
+
+                      try {
+                        const { error } = await supabase.from("task_items").insert({
+                          task_id: selectedTask.id,
+                          category: "답변",
+                          description: taskReplyText.trim(),
+                          amount: 0,
+                          status: "approved",
+                        })
+
+                        if (error) throw error
+
+                        setTaskReplyText("")
+                        toast({
+                          title: "답변 저장 완료",
+                          description: "답변이 티켓에 저장되었습니다.",
+                        })
+                      } catch (error: any) {
+                        console.error("Save reply error:", error)
+                        toast({
+                          variant: "destructive",
+                          title: "오류",
+                          description: error.message || "답변 저장 중 오류가 발생했습니다.",
+                        })
+                      }
+                    }}
+                    disabled={!taskReplyText.trim()}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                  >
+                    답변 저장
+                  </Button>
+                </div>
 
                 <div className="border-t pt-4 space-y-4">
                   <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
@@ -791,60 +1067,34 @@ export default function IntakeClient() {
                     </Button>
                   </div>
                 </div>
-
-                {/* 답변 작성 (task_items에 저장) */}
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
-                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">✍️ 답변 작성</Label>
-                  </div>
-                  <Textarea
-                    placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
-                    value={taskReplyText}
-                    onChange={(e) => setTaskReplyText(e.target.value)}
-                    rows={3}
-                    className="border-gray-300 dark:border-gray-700"
-                  />
-                  <Button
-                    onClick={async () => {
-                      if (!selectedTask || !taskReplyText.trim()) return
-
-                      try {
-                        const { error } = await supabase.from("task_items").insert({
-                          task_id: selectedTask.id,
-                          category: "답변",
-                          description: taskReplyText.trim(),
-                          amount: 0,
-                          status: "approved",
-                        })
-
-                        if (error) throw error
-
-                        setTaskReplyText("")
-                        toast({
-                          title: "답변 저장 완료",
-                          description: "답변이 티켓에 저장되었습니다.",
-                        })
-                      } catch (error: any) {
-                        console.error("Save reply error:", error)
-                        toast({
-                          variant: "destructive",
-                          title: "오류",
-                          description: error.message || "답변 저장 중 오류가 발생했습니다.",
-                        })
-                      }
-                    }}
-                    disabled={!taskReplyText.trim()}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white font-medium"
-                  >
-                    답변 저장
-                  </Button>
-                </div>
               </div>
             )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)} className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium">
+                닫기
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 이미지 확대 Dialog */}
+        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+          <DialogContent className="max-w-7xl max-h-[95vh]">
+            <DialogHeader>
+              <DialogTitle>편지 사진 확대</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center max-h-[80vh] overflow-auto">
+              {selectedImage && (
+                <img
+                  src={selectedImage}
+                  alt="편지 확대"
+                  className="max-w-full max-h-full object-contain"
+                />
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedImage(null)} className="text-gray-900 dark:text-gray-100 font-medium">
                 닫기
               </Button>
             </DialogFooter>
