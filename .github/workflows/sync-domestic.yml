@@ -1,0 +1,41 @@
+name: 동기화 - 국내 리그 (KOVO, KBL, K-League)
+
+on:
+  schedule:
+    # 6시간마다 실행 (0, 6, 12, 18시 KST)
+    - cron: '0 */6 * * *'  # UTC 기준
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 국내 리그 동기화
+        run: |
+          echo "🔄 국내 리그 동기화 시작..."
+          
+          response=$(curl -s -w "\n%{http_code}" \
+            -X GET \
+            "https://exit-system.vercel.app/api/sync-domestic")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ 동기화 성공!"
+          else
+            echo "❌ 동기화 실패!"
+            exit 1
+          fi
+      
+      - name: 결과 요약
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 동기화 완료 시간: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🇰🇷 대상: KOVO, KBL, WKBL, K-League"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

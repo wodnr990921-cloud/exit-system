@@ -1,0 +1,41 @@
+name: 동기화 - 해외 리그 (The Odds API)
+
+on:
+  schedule:
+    # 4시간마다 실행 (0, 4, 8, 12, 16, 20시 KST)
+    - cron: '0 */4 * * *'  # UTC 기준
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 배당 및 경기 결과 동기화
+        run: |
+          echo "🔄 해외 리그 동기화 시작..."
+          
+          response=$(curl -s -w "\n%{http_code}" \
+            -X GET \
+            "https://exit-system.vercel.app/api/sync-odds-api")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ 동기화 성공!"
+          else
+            echo "❌ 동기화 실패!"
+            exit 1
+          fi
+      
+      - name: 결과 요약
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 동기화 완료 시간: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "🌍 대상: EPL, 라리가, 세리에A, 분데스리가 등"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

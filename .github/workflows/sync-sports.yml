@@ -1,0 +1,41 @@
+name: 동기화 - K-League 집중 동기화
+
+on:
+  schedule:
+    # 0시, 5시, 12시 (KST 기준 9시, 14시, 21시)
+    - cron: '0 0,5,12 * * *'  # UTC 기준
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: K-League 동기화
+        run: |
+          echo "🔄 K-League 동기화 시작..."
+          
+          response=$(curl -s -w "\n%{http_code}" \
+            -X GET \
+            "https://exit-system.vercel.app/api/sync-sports")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ 동기화 성공!"
+          else
+            echo "❌ 동기화 실패!"
+            exit 1
+          fi
+      
+      - name: 결과 요약
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 동기화 완료 시간: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "⚽ 대상: K-League 1"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

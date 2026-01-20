@@ -6,11 +6,5 @@
     "env": {
       "NEXT_TELEMETRY_DISABLED": "1"
     }
-  },
-  "crons": [
-    {
-      "path": "/api/sync-odds-api",
-      "schedule": "0 12 * * *"
-    }
-  ]
+  }
 }
