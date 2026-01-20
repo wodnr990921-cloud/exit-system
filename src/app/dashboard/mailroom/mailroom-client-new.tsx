@@ -395,6 +395,7 @@ export default function MailroomClient() {
           .insert({
             name: "미등록 회원",
             member_number: `TEMP-${Date.now()}`,
+            status: "pending",
           })
           .select()
           .single()
@@ -829,7 +830,7 @@ export default function MailroomClient() {
 
                 <CardContent className="p-0">
                   {/* Image Preview */}
-                  <div className="h-32 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                  <div className="h-40 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                     <img
                       src={letter.file_url}
                       alt="Letter"
@@ -878,7 +879,7 @@ export default function MailroomClient() {
 
       {/* Assignment Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5" />
@@ -895,7 +896,7 @@ export default function MailroomClient() {
             <div className="grid grid-cols-2 gap-6 mt-4">
               {/* Left: Image */}
               <div className="space-y-4">
-                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden h-[600px]">
+                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden h-[500px]">
                   <TransformWrapper
                     ref={transformRef}
                     initialScale={1}
