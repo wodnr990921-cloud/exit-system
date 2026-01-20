@@ -93,6 +93,7 @@ interface DailyStats {
 export default function MailroomClient() {
   const [letters, setLetters] = useState<Letter[]>([])
   const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null)
+  const [selectedLetters, setSelectedLetters] = useState<Letter[]>([]) // 여러 편지 선택
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -325,8 +326,36 @@ export default function MailroomClient() {
 
   const handleLetterClick = (letter: Letter) => {
     setSelectedLetter(letter)
+    setSelectedLetters([letter])
     setShowDialog(true)
     resetForm()
+  }
+
+  const toggleLetterSelection = (letter: Letter, e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    const isSelected = selectedLetters.some((l) => l.id === letter.id)
+    
+    if (isSelected) {
+      setSelectedLetters(selectedLetters.filter((l) => l.id !== letter.id))
+    } else {
+      setSelectedLetters([...selectedLetters, letter])
+    }
+  }
+
+  const handleBatchAssignment = () => {
+    if (selectedLetters.length === 0) {
+      setError("선택된 편지가 없습니다.")
+      return
+    }
+    
+    setSelectedLetter(selectedLetters[0]) // 첫 번째 편지를 대표로
+    setShowDialog(true)
+    resetForm()
+  }
+
+  const clearSelection = () => {
+    setSelectedLetters([])
   }
 
   const deleteLetter = async (letterId: string, e?: React.MouseEvent) => {
@@ -480,15 +509,22 @@ export default function MailroomClient() {
         })
       }
 
-      // Always add OCR text as a task item
-      if (selectedLetter.ocr_text) {
-        taskItems.push({
-          task_id: taskId,
-          category: "편지 내용",
-          description: selectedLetter.ocr_text,
-          amount: 0,
-          status: "pending",
-        })
+      // Add OCR text from all selected letters as task items
+      if (selectedLetters.length > 0) {
+        const combinedOcrTexts = selectedLetters
+          .filter((letter) => letter.ocr_text)
+          .map((letter, index) => `[편지 ${index + 1}]\n${letter.ocr_text}`)
+          .join("\n\n")
+
+        if (combinedOcrTexts) {
+          taskItems.push({
+            task_id: taskId,
+            category: "편지 내용",
+            description: combinedOcrTexts,
+            amount: 0,
+            status: "pending",
+          })
+        }
       }
 
       if (taskItems.length > 0) {
@@ -496,18 +532,22 @@ export default function MailroomClient() {
         if (itemsError) throw itemsError
       }
 
-      // Update letter status
+      // Update all selected letters' status
+      const letterIds = selectedLetters.map((l) => l.id)
       const { error: letterError } = await supabase
         .from("letters")
         .update({ status: "processed" })
-        .eq("id", selectedLetter.id)
+        .in("id", letterIds)
 
       if (letterError) throw letterError
 
-      setSuccess(`배정 완료: ${isUnknownCustomer ? "(미등록 회원)" : selectedCustomer.name}`)
+      setSuccess(
+        `배정 완료: ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "(미등록 회원)" : selectedCustomer.name}`
+      )
 
       // Reset form and move to next letter
       resetForm()
+      clearSelection()
       setShowDialog(false)
       await loadLetters()
       await loadDailyStats()
@@ -713,6 +753,29 @@ export default function MailroomClient() {
           <Badge variant="outline" className="text-sm">
             {letters.length}건 대기중
           </Badge>
+          {selectedLetters.length > 0 && (
+            <>
+              <Badge className="text-sm bg-blue-600">
+                {selectedLetters.length}개 선택됨
+              </Badge>
+              <Button
+                onClick={handleBatchAssignment}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                선택한 편지 배정하기
+              </Button>
+              <Button
+                onClick={clearSelection}
+                size="sm"
+                variant="outline"
+              >
+                <X className="w-4 h-4 mr-2" />
+                선택 취소
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -802,30 +865,53 @@ export default function MailroomClient() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {letters.map((letter) => (
-              <Card
-                key={letter.id}
-                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:scale-[1.02] relative overflow-hidden border-2 hover:border-blue-500"
-                onClick={() => handleLetterClick(letter)}
-              >
-                {/* Delete Button */}
-                <button
-                  onClick={(e) => deleteLetter(letter.id, e)}
-                  className="absolute top-2 right-2 p-2 rounded-full bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg"
-                  title="편지 삭제"
+            {letters.map((letter) => {
+              const isSelected = selectedLetters.some((l) => l.id === letter.id)
+              
+              return (
+                <Card
+                  key={letter.id}
+                  className={`group cursor-pointer hover:shadow-xl transition-all duration-200 hover:scale-[1.02] relative overflow-hidden border-2 ${
+                    isSelected
+                      ? "border-blue-500 ring-2 ring-blue-300"
+                      : "hover:border-blue-500"
+                  }`}
+                  onClick={() => handleLetterClick(letter)}
                 >
-                  <X className="w-4 h-4" />
-                </button>
-
-                {/* Prohibited Content Alert */}
-                {letter.ocr_prohibited_content?.found && (
-                  <div className="absolute top-2 left-2 z-10">
-                    <Badge variant="destructive" className="animate-pulse">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      금지어 감지
-                    </Badge>
+                  {/* Checkbox */}
+                  <div
+                    className="absolute top-2 left-2 z-20"
+                    onClick={(e) => toggleLetterSelection(letter, e)}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                        isSelected
+                          ? "bg-blue-600 border-blue-600"
+                          : "bg-white border-gray-300 group-hover:border-blue-500"
+                      }`}
+                    >
+                      {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                    </div>
                   </div>
-                )}
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={(e) => deleteLetter(letter.id, e)}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg"
+                    title="편지 삭제"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  {/* Prohibited Content Alert */}
+                  {letter.ocr_prohibited_content?.found && (
+                    <div className="absolute top-10 left-2 z-10">
+                      <Badge variant="destructive" className="animate-pulse">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        금지어 감지
+                      </Badge>
+                    </div>
+                  )}
 
                 <CardContent className="p-0">
                   {/* Image Preview */}
@@ -871,7 +957,8 @@ export default function MailroomClient() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -883,43 +970,60 @@ export default function MailroomClient() {
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5" />
               편지 배정
-              {selectedLetter && (
-                <span className="text-sm font-normal text-gray-500">
-                  {getLetterTitle(selectedLetter)}
-                </span>
+              {selectedLetters.length > 0 && (
+                <Badge className="bg-blue-600">
+                  {selectedLetters.length}개 편지
+                </Badge>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          {selectedLetter && (
+          {selectedLetter && selectedLetters.length > 0 && (
             <div className="grid grid-cols-2 gap-6 mt-4">
-              {/* Left: Image */}
+              {/* Left: Images */}
               <div className="space-y-4">
-                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden h-[600px]">
-                  <TransformWrapper
-                    ref={transformRef}
-                    initialScale={1}
-                    minScale={0.5}
-                    maxScale={5}
-                    centerOnInit
-                    wheel={{ step: 0.1 }}
-                  >
-                    <TransformComponent
-                      wrapperClass="w-full h-full"
-                      contentClass="w-full h-full flex items-center justify-center"
+                {selectedLetters.length === 1 ? (
+                  <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden h-[600px]">
+                    <TransformWrapper
+                      ref={transformRef}
+                      initialScale={1}
+                      minScale={0.5}
+                      maxScale={5}
+                      centerOnInit
+                      wheel={{ step: 0.1 }}
                     >
-                      <img
-                        src={selectedLetter.file_url}
-                        alt="Letter"
-                        className="max-w-full max-h-full object-contain"
-                        style={{
-                          transform: `rotate(${rotation}deg)`,
-                          transition: "transform 0.3s ease",
-                        }}
-                      />
-                    </TransformComponent>
-                  </TransformWrapper>
-                </div>
+                      <TransformComponent
+                        wrapperClass="w-full h-full"
+                        contentClass="w-full h-full flex items-center justify-center"
+                      >
+                        <img
+                          src={selectedLetters[0].file_url}
+                          alt="Letter"
+                          className="max-w-full max-h-full object-contain"
+                          style={{
+                            transform: `rotate(${rotation}deg)`,
+                            transition: "transform 0.3s ease",
+                          }}
+                        />
+                      </TransformComponent>
+                    </TransformWrapper>
+                  </div>
+                ) : (
+                  <div className="space-y-3 h-[600px] overflow-y-auto">
+                    {selectedLetters.map((letter, index) => (
+                      <div key={letter.id} className="relative">
+                        <Badge className="absolute top-2 left-2 z-10 bg-blue-600">
+                          편지 {index + 1}
+                        </Badge>
+                        <img
+                          src={letter.file_url}
+                          alt={`Letter ${index + 1}`}
+                          className="w-full rounded-lg border-2 border-gray-200 dark:border-gray-700"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Image Controls */}
                 <div className="flex items-center justify-center gap-2">
@@ -954,27 +1058,41 @@ export default function MailroomClient() {
                 </div>
 
                 {/* OCR Result */}
-                {selectedLetter.ocr_text && (
+                {selectedLetters.some((l) => l.ocr_text) && (
                   <Card>
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2 flex items-center gap-2">
                         <MessageSquare className="w-4 h-4" />
                         OCR 추출 내용
-                        {selectedLetter.ocr_confidence && (
-                          <Badge variant="secondary" className="ml-auto">
-                            신뢰도: {selectedLetter.ocr_confidence}%
-                          </Badge>
-                        )}
+                        <Badge variant="secondary" className="ml-auto">
+                          {selectedLetters.length}개 편지
+                        </Badge>
                       </h4>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 max-h-32 overflow-y-auto whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded">
-                        {selectedLetter.ocr_text}
+                      <div className="text-sm text-gray-600 dark:text-gray-400 max-h-48 overflow-y-auto space-y-3">
+                        {selectedLetters.map((letter, index) => (
+                          letter.ocr_text && (
+                            <div key={letter.id} className="whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">
+                                  편지 {index + 1}
+                                </Badge>
+                                {letter.ocr_confidence && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {letter.ocr_confidence}%
+                                  </Badge>
+                                )}
+                              </div>
+                              {letter.ocr_text}
+                            </div>
+                          )
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
                 )}
 
                 {/* Prohibited Content Warning */}
-                {selectedLetter.ocr_prohibited_content?.found && (
+                {selectedLetters.some((l) => l.ocr_prohibited_content?.found) && (
                   <Card className="border-red-200 bg-red-50 dark:bg-red-900/20">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-2">
@@ -983,17 +1101,24 @@ export default function MailroomClient() {
                           <h4 className="font-semibold text-red-900 dark:text-red-100 mb-2">
                             ⚠️ 금지어 감지됨
                           </h4>
-                          {selectedLetter.ocr_prohibited_content.matches?.length > 0 && (
-                            <div className="space-y-1">
-                              {selectedLetter.ocr_prohibited_content.matches
-                                .slice(0, 3)
-                                .map((match: any, idx: number) => (
-                                  <div key={idx} className="text-xs text-red-600 dark:text-red-400">
-                                    • {match.description}: "{match.text}"
-                                  </div>
-                                ))}
-                            </div>
-                          )}
+                          {selectedLetters.map((letter, index) => (
+                            letter.ocr_prohibited_content?.found && letter.ocr_prohibited_content.matches?.length > 0 && (
+                              <div key={letter.id} className="mb-3">
+                                <Badge variant="outline" className="mb-2">
+                                  편지 {index + 1}
+                                </Badge>
+                                <div className="space-y-1">
+                                  {letter.ocr_prohibited_content.matches
+                                    .slice(0, 3)
+                                    .map((match: any, idx: number) => (
+                                      <div key={idx} className="text-xs text-red-600 dark:text-red-400">
+                                        • {match.description}: "{match.text}"
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )
+                          ))}
                         </div>
                       </div>
                     </CardContent>
