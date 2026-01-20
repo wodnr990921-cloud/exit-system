@@ -822,11 +822,14 @@ export default function MailroomClient() {
         if (itemsError) throw itemsError
       }
 
-      // Update all selected letters' status
+      // Update all selected letters' status and link to task
       const letterIds = selectedLetters.map((l) => l.id)
       const { error: letterError } = await supabase
         .from("letters")
-        .update({ status: "processed" })
+        .update({ 
+          status: "processed",
+          task_id: taskId
+        })
         .in("id", letterIds)
 
       if (letterError) throw letterError

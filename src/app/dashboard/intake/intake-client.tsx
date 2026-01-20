@@ -128,11 +128,17 @@ export default function IntakeClient() {
   const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
   const [newCustomerPhone, setNewCustomerPhone] = useState("")
   const [newCustomerAddress, setNewCustomerAddress] = useState("")
+
+  // 현재 사용자 및 티켓 삭제
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingTask, setDeletingTask] = useState(false)
   
   const supabase = createClient()
   const { toast } = useToast()
 
   useEffect(() => {
+    loadCurrentUser()
     loadAllTasks()
   }, [])
 
@@ -143,6 +149,23 @@ export default function IntakeClient() {
       setTasks(allTasks)
     }
   }, [searchQuery, searchType, allTasks])
+
+  const loadCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+        
+        setCurrentUser(userData)
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error)
+    }
+  }
 
   const loadAllTasks = async () => {
     setLoading(true)
@@ -382,6 +405,41 @@ export default function IntakeClient() {
         title: "오류",
         description: error.message || "회원 등록 중 오류가 발생했습니다.",
       })
+    }
+  }
+
+  // 티켓 삭제 (대표/관리자만)
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return
+
+    setDeletingTask(true)
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", selectedTask.id)
+
+      if (error) throw error
+
+      toast({
+        title: "티켓 삭제 완료",
+        description: `티켓 #${selectedTask.ticket_no || selectedTask.id.slice(0, 8)}이(가) 삭제되었습니다.`,
+      })
+
+      // Close dialogs and reload tasks
+      setIsDeleteDialogOpen(false)
+      setIsTaskDialogOpen(false)
+      setSelectedTask(null)
+      await loadAllTasks()
+    } catch (error: any) {
+      console.error("Delete task error:", error)
+      toast({
+        variant: "destructive",
+        title: "삭제 오류",
+        description: error.message || "티켓 삭제 중 오류가 발생했습니다.",
+      })
+    } finally {
+      setDeletingTask(false)
     }
   }
 
@@ -1070,7 +1128,18 @@ export default function IntakeClient() {
               </div>
             )}
 
-            <DialogFooter>
+            <DialogFooter className="flex items-center justify-between">
+              <div>
+                {currentUser && (currentUser.role === "ceo" || currentUser.role === "admin") && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    className="bg-red-600 hover:bg-red-700 text-white font-medium"
+                  >
+                    🗑️ 티켓 삭제
+                  </Button>
+                )}
+              </div>
               <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)} className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium">
                 닫기
               </Button>
@@ -1096,6 +1165,49 @@ export default function IntakeClient() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedImage(null)} className="text-gray-900 dark:text-gray-100 font-medium">
                 닫기
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 티켓 삭제 확인 Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-red-600">⚠️ 티켓 삭제 확인</DialogTitle>
+              <DialogDescription>
+                정말로 이 티켓을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTask && (
+              <div className="space-y-2 py-4 border-y border-gray-200 dark:border-gray-700">
+                <p className="text-sm">
+                  <span className="font-semibold">티켓번호:</span> {selectedTask.ticket_no || selectedTask.id.slice(0, 8)}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">제목:</span> {selectedTask.title}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">회원:</span> {selectedTask.customer?.name || "미등록"}
+                </p>
+              </div>
+            )}
+            <DialogFooter className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={deletingTask}
+                className="flex-1"
+              >
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteTask}
+                disabled={deletingTask}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                {deletingTask ? "삭제 중..." : "삭제"}
               </Button>
             </DialogFooter>
           </DialogContent>
