@@ -1321,10 +1321,10 @@ export default function MailroomClient() {
         </div>
 
         {/* Column 3: Input Form (40%) */}
-        <div className="w-2/5 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm flex flex-col max-h-screen">
+        <div className="w-2/5 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm flex flex-col">
           {selectedLetter ? (
             <>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-20">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {/* Customer Search */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -1630,8 +1630,8 @@ export default function MailroomClient() {
                 </div>
               </div>
 
-              {/* Footer Action Button */}
-              <div className="sticky bottom-0 p-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 backdrop-blur-sm space-y-2 shadow-lg">
+              {/* Footer Action Button - Outside scroll area */}
+              <div className="p-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 backdrop-blur-sm space-y-2 shadow-lg">
                 {/* 필수 조건 안내 */}
                 {!selectedStaff && (
                   <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
