@@ -452,10 +452,15 @@ export default function MailroomClient() {
 
       // Create new task if needed
       if (!taskId) {
+        // Generate title based on letter type
+        const letterType = selectedLetter.ocr_image_type === "envelope" ? "신규 편지" : "편지 내용"
+        const taskTitle = `[우편실] ${letterType} - ${selectedCustomer.name || "미등록 회원"}`
+        
         const { data: task, error: taskError } = await supabase
           .from("tasks")
           .insert({
             user_id: currentUser?.id || selectedStaff,
+            title: taskTitle,
             customer_id: actualCustomerId,
             member_id: actualCustomerId,
             assigned_to: selectedStaff,
