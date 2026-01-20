@@ -46,6 +46,7 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
 
 interface Letter {
   id: string
+  file_path: string
   file_url: string
   ocr_text: string | null
   status: string
@@ -264,14 +265,16 @@ export default function MailroomClient() {
       const letter = letters.find(l => l.id === letterId)
       if (!letter) return
 
-      // Storage에서 파일 삭제
-      const { error: storageError } = await supabase.storage
-        .from("letters")
-        .remove([letter.file_path])
+      // Storage에서 파일 삭제 (file_path가 있는 경우만)
+      if (letter.file_path) {
+        const { error: storageError } = await supabase.storage
+          .from("letters")
+          .remove([letter.file_path])
 
-      if (storageError) {
-        console.error("Storage 삭제 오류:", storageError)
-        // Storage 삭제 실패해도 DB 레코드는 삭제 진행
+        if (storageError) {
+          console.error("Storage 삭제 오류:", storageError)
+          // Storage 삭제 실패해도 DB 레코드는 삭제 진행
+        }
       }
 
       // DB에서 레코드 삭제
