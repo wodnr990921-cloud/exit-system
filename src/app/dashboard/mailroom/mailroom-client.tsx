@@ -38,6 +38,8 @@ import {
   TrendingUp,
   Camera,
   Upload,
+  X,
+  UserPlus,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
@@ -250,6 +252,55 @@ export default function MailroomClient() {
       setError("편지 목록을 불러오는데 실패했습니다.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const deleteLetter = async (letterId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation() // 버블링 방지
+
+    if (!confirm("이 편지를 삭제하시겠습니까?")) return
+
+    try {
+      const letter = letters.find(l => l.id === letterId)
+      if (!letter) return
+
+      // Storage에서 파일 삭제
+      const { error: storageError } = await supabase.storage
+        .from("letters")
+        .remove([letter.file_path])
+
+      if (storageError) {
+        console.error("Storage 삭제 오류:", storageError)
+        // Storage 삭제 실패해도 DB 레코드는 삭제 진행
+      }
+
+      // DB에서 레코드 삭제
+      const { error: dbError } = await supabase
+        .from("letters")
+        .delete()
+        .eq("id", letterId)
+
+      if (dbError) throw dbError
+
+      toast({
+        title: "삭제 완료",
+        description: "편지가 삭제되었습니다.",
+      })
+
+      // 선택된 편지였다면 선택 해제
+      if (selectedLetter?.id === letterId) {
+        setSelectedLetter(null)
+      }
+
+      // 목록 새로고침
+      await loadLetters()
+    } catch (error: any) {
+      console.error("편지 삭제 오류:", error)
+      toast({
+        title: "삭제 실패",
+        description: error.message || "편지 삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -509,19 +560,24 @@ export default function MailroomClient() {
         aiSummary = "기타 문의"
       }
 
+      // 미등록 회원 여부 확인
+      const isUnknownCustomer = selectedCustomer.id === "unknown"
+      const customerId = isUnknownCustomer ? null : selectedCustomer.id
+      const customerName = isUnknownCustomer ? "미등록 회원" : selectedCustomer.name
+
       // 🔍 봉투 판별 로직
       const isEnvelope = selectedLetter.ocr_image_type === "envelope"
       let task: any
 
-      if (isEnvelope) {
-        // 📮 봉투가 있는 경우 → 새 업무 생성
+      if (isEnvelope || isUnknownCustomer) {
+        // 📮 봉투가 있거나 미등록 회원 → 새 업무 생성
         const { data: newTask, error: taskError } = await supabase
           .from("tasks")
           .insert({
-            title: `${selectedCustomer.name} - ${aiSummary}`,
+            title: `${customerName} - ${aiSummary}`,
             description: selectedLetter.ocr_text || "",
-            member_id: selectedCustomer.id,
-            customer_id: selectedCustomer.id,
+            member_id: customerId,
+            customer_id: customerId,
             letter_id: selectedLetter.id,
             assignee_id: selectedStaff,
             status: "assigned",
@@ -534,17 +590,24 @@ export default function MailroomClient() {
         if (taskError) throw taskError
         task = newTask
 
-        toast({
-          title: "📮 새 업무 생성",
-          description: `봉투 감지 - 새로운 티켓이 생성되었습니다. (${task.ticket_no})`,
-        })
+        if (isUnknownCustomer) {
+          toast({
+            title: "⚠️ 미등록 회원 업무 생성",
+            description: `새로운 티켓이 생성되었습니다. (${task.ticket_no})`,
+          })
+        } else {
+          toast({
+            title: "📮 새 업무 생성",
+            description: `봉투 감지 - 새로운 티켓이 생성되었습니다. (${task.ticket_no})`,
+          })
+        }
       } else {
         // 📄 편지 내용만 있는 경우 → 기존 업무에 추가
         // 같은 회원의 가장 최근 업무 찾기 (status가 'assigned' 또는 'pending'인 것만)
         const { data: existingTask, error: findError } = await supabase
           .from("tasks")
           .select("*")
-          .eq("member_id", selectedCustomer.id)
+          .eq("member_id", customerId)
           .in("status", ["assigned", "pending"])
           .order("created_at", { ascending: false })
           .limit(1)
@@ -568,10 +631,10 @@ export default function MailroomClient() {
           const { data: newTask, error: taskError } = await supabase
             .from("tasks")
             .insert({
-              title: `${selectedCustomer.name} - ${aiSummary}`,
+              title: `${customerName} - ${aiSummary}`,
               description: selectedLetter.ocr_text || "",
-              member_id: selectedCustomer.id,
-              customer_id: selectedCustomer.id,
+              member_id: customerId,
+              customer_id: customerId,
               letter_id: selectedLetter.id,
               assignee_id: selectedStaff,
               status: "assigned",
@@ -608,13 +671,13 @@ export default function MailroomClient() {
         .update({
           status: "assigned",
           employee_id: selectedStaff,
-          member_id: selectedCustomer.id,
+          member_id: customerId,
         })
         .eq("id", selectedLetter.id)
 
       if (letterError) throw letterError
 
-      setSuccess(`배정 완료: ${task.ticket_no}`)
+      setSuccess(`배정 완료: ${task.ticket_no} ${isUnknownCustomer ? "(미등록 회원)" : ""}`)
 
       // Reset form and move to next letter
       resetForm()
@@ -948,14 +1011,23 @@ export default function MailroomClient() {
                     setSelectedLetter(letter)
                     resetForm()
                   }}
-                  className={`w-full p-3 rounded-lg text-left transition-all relative ${
+                  className={`group w-full p-3 rounded-lg text-left transition-all relative ${
                     selectedLetter?.id === letter.id
                       ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg scale-105"
                       : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >
+                  {/* 삭제 버튼 */}
+                  <button
+                    onClick={(e) => deleteLetter(letter.id, e)}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    title="편지 삭제"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+
                   {letter.ocr_prohibited_content?.found && (
-                    <div className="absolute -top-1 -right-1">
+                    <div className="absolute -top-1 -left-1">
                       <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                     </div>
                   )}
@@ -1233,13 +1305,29 @@ export default function MailroomClient() {
         <div className="w-2/5 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm flex flex-col">
           {selectedLetter ? (
             <>
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Customer Search */}
-                <div className="space-y-3">
-                  <Label className="text-sm font-semibold flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    회원 검색
-                  </Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      회원 검색
+                    </Label>
+                    {!selectedCustomer && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedCustomer({ id: "unknown", member_number: "미등록", name: "미등록 회원" })
+                          setCustomerSearch("")
+                        }}
+                        className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                      >
+                        <UserPlus className="w-3 h-3 mr-1" />
+                        회원 없이 진행
+                      </Button>
+                    )}
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
@@ -1249,7 +1337,8 @@ export default function MailroomClient() {
                         setCustomerSearch(e.target.value)
                         searchCustomers(e.target.value)
                       }}
-                      className="pl-9 h-11 border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      className="pl-9 h-10 border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      disabled={selectedCustomer?.id === "unknown"}
                     />
                   </div>
 
@@ -1280,12 +1369,27 @@ export default function MailroomClient() {
                   )}
 
                   {selectedCustomer && (
-                    <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
+                    <Card className={`border-2 ${
+                      selectedCustomer.id === "unknown" 
+                        ? "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20"
+                        : "border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20"
+                    }`}>
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div className="text-sm font-medium text-gray-900 dark:text-gray-50">
-                            ✓ {selectedCustomer.member_number} - {selectedCustomer.name}
+                            {selectedCustomer.id === "unknown" ? "⚠️" : "✓"} {selectedCustomer.member_number} - {selectedCustomer.name}
                           </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setSelectedCustomer(null)
+                              setCustomerSearch("")
+                            }}
+                            className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/20"
+                          >
+                            <X className="w-3 h-3 text-red-600" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -1293,10 +1397,10 @@ export default function MailroomClient() {
                 </div>
 
                 {/* Staff Assignment */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <Label className="text-sm font-semibold">담당자 배정</Label>
                   <Select value={selectedStaff} onValueChange={setSelectedStaff}>
-                    <SelectTrigger className="h-11 border-gray-300 dark:border-gray-700">
+                    <SelectTrigger className="h-10 border-gray-300 dark:border-gray-700">
                       <SelectValue placeholder="담당자 선택..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -1310,10 +1414,10 @@ export default function MailroomClient() {
                 </div>
 
                 {/* Task Type Tabs */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <Label className="text-sm font-semibold">업무 유형</Label>
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 h-12">
+                    <TabsList className="grid w-full grid-cols-4 h-10">
                       <TabsTrigger value="books" className="flex items-center gap-1.5 text-xs">
                         <Book className="w-4 h-4" />
                         도서
@@ -1508,19 +1612,13 @@ export default function MailroomClient() {
               </div>
 
               {/* Footer Action Button */}
-              <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm space-y-3">
+              <div className="p-3 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm space-y-2">
                 {/* 필수 조건 안내 */}
-                {(!selectedCustomer || !selectedStaff) && (
-                  <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium mb-1">배정 전 확인사항:</p>
-                        <ul className="text-xs space-y-1">
-                          {!selectedCustomer && <li>• 회원을 선택해주세요</li>}
-                          {!selectedStaff && <li>• 담당자를 선택해주세요</li>}
-                        </ul>
-                      </div>
+                {!selectedStaff && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>담당자를 선택해주세요</span>
                     </div>
                   </div>
                 )}
@@ -1528,19 +1626,19 @@ export default function MailroomClient() {
                 <Button
                   onClick={handleSaveAndNext}
                   disabled={processing || !selectedCustomer || !selectedStaff}
-                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-12 text-sm font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
                   {processing ? (
                     <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       처리 중...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
                       배정 완료
-                      <ArrowRight className="w-5 h-5 ml-2" />
+                      <ArrowRight className="w-4 h-4 ml-2" />
                       <span className="ml-2 text-xs opacity-75">(Ctrl+Enter)</span>
                     </>
                   )}
