@@ -46,6 +46,7 @@ import {
   Upload,
   X,
   UserPlus,
+  FileText,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch"
@@ -113,6 +114,9 @@ export default function MailroomClient() {
   // Staff assignment
   const [staff, setStaff] = useState<User[]>([])
   const [selectedStaff, setSelectedStaff] = useState<string>("")
+
+  // Reply/Response
+  const [replyText, setReplyText] = useState("")
 
   // Form tabs
   const [activeTab, setActiveTab] = useState<string>("books")
@@ -318,6 +322,7 @@ export default function MailroomClient() {
     setPurchaseItems([{ description: "", amount: 0 }])
     setSportsData({ game_type: "", bet_amount: 0, result: "" })
     setOtherInquiry("")
+    setReplyText("")
     setRotation(0)
     if (transformRef.current) {
       transformRef.current.resetTransform()
@@ -357,6 +362,175 @@ export default function MailroomClient() {
 
   const clearSelection = () => {
     setSelectedLetters([])
+  }
+
+  const handlePrintReplies = async () => {
+    try {
+      // Fetch all tasks with replies
+      const { data, error } = await supabase
+        .from("task_items")
+        .select(`
+          id,
+          category,
+          description,
+          created_at,
+          task:tasks!inner(
+            ticket_no,
+            customer:customers(name, member_number)
+          )
+        `)
+        .eq("category", "답변")
+        .order("created_at", { ascending: false })
+        .limit(100)
+
+      if (error) throw error
+
+      // Open print window
+      const printWindow = window.open("", "_blank")
+      if (!printWindow) {
+        toast({
+          title: "오류",
+          description: "팝업이 차단되었습니다. 팝업 차단을 해제해주세요.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Generate HTML for printing
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>답변 일괄 출력</title>
+  <style>
+    @media print {
+      @page { margin: 2cm; }
+      .page-break { page-break-after: always; }
+    }
+    body {
+      font-family: 'Malgun Gothic', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #333;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin: 0 0 10px 0;
+    }
+    .header p {
+      color: #666;
+      font-size: 14px;
+    }
+    .reply-item {
+      margin-bottom: 40px;
+      padding: 20px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .reply-header {
+      display: flex;
+      justify-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .ticket-info {
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .customer-info {
+      color: #666;
+      font-size: 14px;
+    }
+    .reply-content {
+      white-space: pre-wrap;
+      line-height: 1.8;
+      font-size: 15px;
+      padding: 15px;
+      background: white;
+      border-left: 4px solid #4CAF50;
+      min-height: 100px;
+    }
+    .date {
+      text-align: right;
+      color: #999;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .no-data {
+      text-align: center;
+      padding: 50px;
+      color: #999;
+    }
+    @media print {
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📮 우편실 답변 일괄 출력</h1>
+    <p>출력일시: ${new Date().toLocaleString("ko-KR")}</p>
+    <p>총 ${data?.length || 0}건의 답변</p>
+  </div>
+
+  ${
+    data && data.length > 0
+      ? data
+          .map(
+            (item: any, index: number) => `
+    <div class="reply-item ${index < data.length - 1 ? "page-break" : ""}">
+      <div class="reply-header">
+        <div>
+          <div class="ticket-info">티켓 #${item.task?.ticket_no || "N/A"}</div>
+          <div class="customer-info">${item.task?.customer?.name || "미등록"} (${item.task?.customer?.member_number || "-"})</div>
+        </div>
+        <div class="date">${new Date(item.created_at).toLocaleString("ko-KR")}</div>
+      </div>
+      <div class="reply-content">${item.description}</div>
+    </div>
+  `
+          )
+          .join("")
+      : '<div class="no-data">등록된 답변이 없습니다.</div>'
+  }
+
+  <div class="no-print" style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 2px solid #ddd;">
+    <button onclick="window.print()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px;">
+      🖨️ 인쇄하기
+    </button>
+    <button onclick="window.close()" style="padding: 10px 30px; font-size: 16px; cursor: pointer; background: #f44336; color: white; border: none; border-radius: 5px; margin-left: 10px;">
+      ✕ 닫기
+    </button>
+  </div>
+</body>
+</html>
+      `
+
+      printWindow.document.write(html)
+      printWindow.document.close()
+
+      toast({
+        title: "출력 준비 완료",
+        description: `${data?.length || 0}건의 답변을 새 창에서 확인하세요`,
+      })
+    } catch (error: any) {
+      console.error("Print replies error:", error)
+      toast({
+        title: "출력 실패",
+        description: error.message || "답변 목록을 불러올 수 없습니다",
+        variant: "destructive",
+      })
+    }
   }
 
   const deleteLetter = async (letterId: string, e?: React.MouseEvent) => {
@@ -548,6 +722,18 @@ export default function MailroomClient() {
           })
           console.log(`✅ 편지 내용 task_item 생성됨`)
         }
+      }
+
+      // Add reply if provided
+      if (replyText.trim()) {
+        taskItems.push({
+          task_id: taskId,
+          category: "답변",
+          description: replyText.trim(),
+          amount: 0,
+          status: "pending",
+        })
+        console.log(`✅ 답변 task_item 생성됨 (${replyText.length}자)`)
       }
 
       if (taskItems.length > 0) {
@@ -869,6 +1055,17 @@ export default function MailroomClient() {
               )}
             </Button>
           </div>
+
+          {/* Print Replies Button */}
+          <Button
+            onClick={handlePrintReplies}
+            size="sm"
+            variant="outline"
+            className="text-gray-900 dark:text-gray-100 border-green-500 hover:bg-green-50"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            답변 일괄 출력
+          </Button>
 
           {/* Staff Stats */}
           {currentUser && ["staff", "employee"].includes(currentUser.role) && (
@@ -1503,6 +1700,29 @@ export default function MailroomClient() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Reply Section */}
+                <Card className="border-2 border-green-200 dark:border-green-800">
+                  <CardContent className="p-4">
+                    <Label className="text-sm font-bold flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md mb-3">
+                      <MessageSquare className="w-4 h-4" />
+                      답변 작성
+                      <Badge variant="outline" className="ml-auto">
+                        선택사항
+                      </Badge>
+                    </Label>
+                    <textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="회원에게 보낼 답변을 작성하세요... (선택사항)"
+                      className="w-full h-32 p-3 text-sm border rounded-md resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                      <span>💡 팁: 답변은 일괄 출력하여 편지와 함께 발송할 수 있습니다</span>
+                      <span>{replyText.length}자</span>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Submit Button */}
                 <Button
