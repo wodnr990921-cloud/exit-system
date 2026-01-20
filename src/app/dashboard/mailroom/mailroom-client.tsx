@@ -443,7 +443,7 @@ export default function MailroomClient() {
           created_at,
           task:tasks!inner(
             ticket_no,
-            customer:customers(name, member_number)
+            customer:customers(name, member_number, address)
           )
         `)
         .eq("category", "답변")
@@ -518,6 +518,17 @@ export default function MailroomClient() {
       color: #666;
       font-size: 14px;
     }
+    .recipient-address {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: white;
+      border: 2px solid #333;
+      border-radius: 4px;
+      text-align: left;
+      line-height: 1.6;
+    }
     .reply-content {
       white-space: pre-wrap;
       line-height: 1.8;
@@ -556,6 +567,9 @@ export default function MailroomClient() {
           .map(
             (item: any, index: number) => `
     <div class="reply-item ${index < data.length - 1 ? "page-break" : ""}">
+      <div class="recipient-address">
+        ${item.task?.customer?.address || "주소 없음"} ${item.task?.customer?.name || "미등록"}
+      </div>
       <div class="reply-header">
         <div>
           <div class="ticket-info">티켓 #${item.task?.ticket_no || "N/A"}</div>

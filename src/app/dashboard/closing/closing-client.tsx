@@ -324,7 +324,7 @@ export default function ClosingClient() {
           created_at,
           task:tasks!inner(
             ticket_no,
-            customer:customers(name, member_number)
+            customer:customers(name, member_number, address)
           )
         `)
         .eq("category", "답변")
@@ -358,6 +358,7 @@ export default function ClosingClient() {
             body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; }
             h1 { text-align: center; margin-bottom: 30px; }
             .reply-item { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+            .recipient-address { font-size: 20px; font-weight: bold; margin-bottom: 20px; padding: 15px; background: white; border: 2px solid #333; border-radius: 4px; text-align: left; line-height: 1.6; }
             .reply-header { font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 2px solid #333; }
             .reply-content { line-height: 1.8; white-space: pre-wrap; }
             .reply-footer { margin-top: 10px; text-align: right; color: #666; font-size: 0.9em; }
@@ -369,6 +370,9 @@ export default function ClosingClient() {
             .map(
               (reply: any, index: number) => `
             <div class="reply-item ${index < replies.length - 1 ? "page-break" : ""}">
+              <div class="recipient-address">
+                ${reply.task?.customer?.address || "주소 없음"} ${reply.task?.customer?.name || "미등록"}
+              </div>
               <div class="reply-header">
                 티켓: ${reply.task?.ticket_no || "미지정"} | 
                 회원: ${reply.task?.customer?.name || "미지정"} (${reply.task?.customer?.member_number || ""})
