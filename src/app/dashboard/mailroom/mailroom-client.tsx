@@ -629,9 +629,13 @@ export default function MailroomClient() {
 
         // letters 테이블에 레코드 생성
         const { error: insertError } = await supabase.from("letters").insert({
+          user_id: user.id,
+          file_path: fileName,
           file_url: publicUrl,
+          file_name: file.name,
+          file_size: compressedFile.size,
+          file_type: compressedFile.type,
           status: "uploaded",
-          uploaded_by: user.id,
         })
 
         if (insertError) throw insertError
