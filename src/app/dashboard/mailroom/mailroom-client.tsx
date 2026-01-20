@@ -118,6 +118,13 @@ export default function MailroomClient() {
   // Reply/Response
   const [replyText, setReplyText] = useState("")
 
+  // New customer registration
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
+  const [newCustomerName, setNewCustomerName] = useState("")
+  const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
+  const [newCustomerPhone, setNewCustomerPhone] = useState("")
+  const [newCustomerAddress, setNewCustomerAddress] = useState("")
+
   // Form tabs
   const [activeTab, setActiveTab] = useState<string>("books")
 
@@ -323,6 +330,11 @@ export default function MailroomClient() {
     setSportsData({ game_type: "", bet_amount: 0, result: "" })
     setOtherInquiry("")
     setReplyText("")
+    setShowNewCustomerForm(false)
+    setNewCustomerName("")
+    setNewCustomerMemberNumber("")
+    setNewCustomerPhone("")
+    setNewCustomerAddress("")
     setRotation(0)
     if (transformRef.current) {
       transformRef.current.resetTransform()
@@ -362,6 +374,61 @@ export default function MailroomClient() {
 
   const clearSelection = () => {
     setSelectedLetters([])
+  }
+
+  const handleRegisterNewCustomer = async () => {
+    if (!newCustomerName.trim() || !newCustomerMemberNumber.trim()) {
+      toast({
+        title: "입력 오류",
+        description: "이름과 회원번호는 필수입니다.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      // Insert new customer
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("customers")
+        .insert({
+          name: newCustomerName.trim(),
+          member_number: newCustomerMemberNumber.trim(),
+          phone: newCustomerPhone.trim() || null,
+          address: newCustomerAddress.trim() || null,
+        })
+        .select()
+        .single()
+
+      if (customerError) throw customerError
+
+      // Update selected customer
+      setSelectedCustomer({
+        id: newCustomer.id,
+        name: newCustomer.name,
+        member_number: newCustomer.member_number,
+      })
+
+      // Close form
+      setShowNewCustomerForm(false)
+      setNewCustomerName("")
+      setNewCustomerMemberNumber("")
+      setNewCustomerPhone("")
+      setNewCustomerAddress("")
+
+      toast({
+        title: "회원 등록 완료",
+        description: `${newCustomer.name} (${newCustomer.member_number}) 회원이 등록되었습니다.`,
+      })
+
+      console.log(`✅ 신규 회원 등록 완료: ${newCustomer.name} (${newCustomer.member_number})`)
+    } catch (error: any) {
+      console.error("Register customer error:", error)
+      toast({
+        title: "등록 실패",
+        description: error.message || "회원 등록 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePrintReplies = async () => {
@@ -1396,18 +1463,29 @@ export default function MailroomClient() {
                       회원 검색
                     </Label>
                     {!selectedCustomer && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedCustomer({ id: "unknown", member_number: "미등록", name: "미등록 회원" })
-                          setCustomerSearch("")
-                        }}
-                        className="h-7 text-xs text-gray-900 dark:text-gray-100 hover:bg-amber-50"
-                      >
-                        <UserPlus className="w-3 h-3 mr-1" />
-                        회원 없이 진행
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedCustomer({ id: "unknown", member_number: "미등록", name: "미등록 회원" })
+                            setCustomerSearch("")
+                          }}
+                          className="h-7 text-xs text-gray-900 dark:text-gray-100 hover:bg-amber-50"
+                        >
+                          <UserPlus className="w-3 h-3 mr-1" />
+                          회원 없이 진행
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                          className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <UserPlus className="w-3 h-3 mr-1" />
+                          신규 회원 등록
+                        </Button>
+                      </>
                     )}
                   </div>
                   <div className="relative">
@@ -1470,6 +1548,76 @@ export default function MailroomClient() {
                           className="text-gray-900 dark:text-gray-100"
                         >
                           변경
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* New Customer Registration Form */}
+                  {showNewCustomerForm && (
+                    <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-bold text-green-900 dark:text-green-100">
+                            ✨ 신규 회원 등록
+                          </h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowNewCustomerForm(false)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm">이름 *</Label>
+                          <Input
+                            value={newCustomerName}
+                            onChange={(e) => setNewCustomerName(e.target.value)}
+                            placeholder="홍길동"
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm">회원번호 *</Label>
+                          <Input
+                            value={newCustomerMemberNumber}
+                            onChange={(e) => setNewCustomerMemberNumber(e.target.value)}
+                            placeholder="M001"
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm">전화번호</Label>
+                          <Input
+                            value={newCustomerPhone}
+                            onChange={(e) => setNewCustomerPhone(e.target.value)}
+                            placeholder="010-1234-5678"
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm">주소</Label>
+                          <Input
+                            value={newCustomerAddress}
+                            onChange={(e) => setNewCustomerAddress(e.target.value)}
+                            placeholder="서울시..."
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <Button
+                          onClick={handleRegisterNewCustomer}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white"
+                          size="sm"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          회원 등록 및 선택
                         </Button>
                       </CardContent>
                     </Card>
