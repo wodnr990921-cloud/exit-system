@@ -840,7 +840,6 @@ export default function MailroomClient() {
       toast({
         title: "업로드 완료",
         description: `${uploadedCount}개의 편지가 업로드되었습니다. OCR 처리 중... (F12 콘솔에서 진행 상황 확인)`,
-        duration: 5000,
       })
 
       // 목록 새로고침
