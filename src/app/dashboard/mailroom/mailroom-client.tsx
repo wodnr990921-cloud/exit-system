@@ -787,6 +787,8 @@ export default function MailroomClient() {
 
         // 자동 OCR 처리
         try {
+          console.log("OCR 처리 시작:", file.name)
+          
           const formData = new FormData()
           formData.append("image", compressedFile)
           formData.append("detectImageType", "true")
@@ -798,7 +800,16 @@ export default function MailroomClient() {
             body: formData,
           })
 
+          console.log("OCR API 응답 상태:", ocrResponse.status)
+
+          if (!ocrResponse.ok) {
+            const errorText = await ocrResponse.text()
+            console.error("OCR API 오류:", errorText)
+            throw new Error(`OCR API 오류: ${ocrResponse.status}`)
+          }
+
           const ocrResult = await ocrResponse.json()
+          console.log("OCR 결과:", ocrResult)
 
           if (ocrResult.success && ocrResult.data && letterData) {
             // OCR 결과를 letters 테이블에 업데이트
@@ -811,9 +822,14 @@ export default function MailroomClient() {
                 ocr_prohibited_content: ocrResult.data.prohibitedContent || null,
               })
               .eq("id", letterData.id)
+            
+            console.log("OCR 업데이트 완료:", letterData.id)
+          } else {
+            console.warn("OCR 실패 또는 데이터 없음:", ocrResult)
           }
-        } catch (ocrError) {
+        } catch (ocrError: any) {
           console.error("OCR 자동 처리 오류:", ocrError)
+          console.error("OCR 오류 상세:", ocrError.message, ocrError.stack)
           // OCR 실패해도 업로드는 성공으로 처리
         }
 
@@ -822,8 +838,9 @@ export default function MailroomClient() {
       }
 
       toast({
-        title: "업로드 및 OCR 완료",
-        description: `${uploadedCount}개의 편지가 업로드되고 자동으로 OCR 처리되었습니다.`,
+        title: "업로드 완료",
+        description: `${uploadedCount}개의 편지가 업로드되었습니다. OCR 처리 중... (F12 콘솔에서 진행 상황 확인)`,
+        duration: 5000,
       })
 
       // 목록 새로고침
@@ -1305,10 +1322,10 @@ export default function MailroomClient() {
         </div>
 
         {/* Column 3: Input Form (40%) */}
-        <div className="w-2/5 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm flex flex-col">
+        <div className="w-2/5 bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm flex flex-col max-h-screen">
           {selectedLetter ? (
             <>
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-20">
                 {/* Customer Search */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -1440,7 +1457,7 @@ export default function MailroomClient() {
                     </TabsList>
 
                     {/* Books Tab */}
-                    <TabsContent value="books" className="space-y-4 mt-4">
+                    <TabsContent value="books" className="space-y-2 mt-2">
                       <div className="space-y-3">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1514,7 +1531,7 @@ export default function MailroomClient() {
                     </TabsContent>
 
                     {/* Purchase Tab */}
-                    <TabsContent value="purchase" className="space-y-4 mt-4">
+                    <TabsContent value="purchase" className="space-y-2 mt-2">
                       {purchaseItems.map((item, idx) => (
                         <div key={idx} className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <div className="flex items-center justify-between">
@@ -1556,7 +1573,7 @@ export default function MailroomClient() {
                     </TabsContent>
 
                     {/* Sports Tab */}
-                    <TabsContent value="sports" className="space-y-4 mt-4">
+                    <TabsContent value="sports" className="space-y-2 mt-2">
                       <div className="space-y-3">
                         <div>
                           <Label className="text-xs">경기 종류</Label>
@@ -1598,7 +1615,7 @@ export default function MailroomClient() {
                     </TabsContent>
 
                     {/* Other Tab */}
-                    <TabsContent value="other" className="space-y-4 mt-4">
+                    <TabsContent value="other" className="space-y-2 mt-2">
                       <div className="space-y-3">
                         <Label className="text-xs">문의 내용</Label>
                         <Textarea
@@ -1615,7 +1632,7 @@ export default function MailroomClient() {
               </div>
 
               {/* Footer Action Button */}
-              <div className="p-3 border-t border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm space-y-2">
+              <div className="sticky bottom-0 p-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 backdrop-blur-sm space-y-2 shadow-lg">
                 {/* 필수 조건 안내 */}
                 {!selectedStaff && (
                   <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
