@@ -325,6 +325,18 @@ export default function MailroomClient() {
   }
 
   const handleLetterClick = (letter: Letter) => {
+    // 카드 클릭 시 토글 방식으로 선택/해제
+    const isSelected = selectedLetters.some((l) => l.id === letter.id)
+    
+    if (isSelected) {
+      setSelectedLetters(selectedLetters.filter((l) => l.id !== letter.id))
+    } else {
+      setSelectedLetters([...selectedLetters, letter])
+    }
+  }
+
+  const handleLetterDoubleClick = (letter: Letter) => {
+    // 더블클릭 시 해당 편지만 선택하고 바로 배정 Dialog 열기
     setSelectedLetter(letter)
     setSelectedLetters([letter])
     setShowDialog(true)
@@ -806,7 +818,7 @@ export default function MailroomClient() {
           <Badge variant="outline" className="text-sm">
             {letters.length}건 대기중
           </Badge>
-          {selectedLetters.length > 0 && (
+          {selectedLetters.length > 0 ? (
             <>
               <Badge className="text-sm bg-blue-600">
                 {selectedLetters.length}개 선택됨
@@ -828,6 +840,10 @@ export default function MailroomClient() {
                 선택 취소
               </Button>
             </>
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              💡 클릭하여 선택 | 더블클릭하여 바로 배정
+            </p>
           )}
         </div>
 
@@ -930,6 +946,7 @@ export default function MailroomClient() {
                       : "hover:border-blue-500"
                   }`}
                   onClick={() => handleLetterClick(letter)}
+                  onDoubleClick={() => handleLetterDoubleClick(letter)}
                 >
                   {/* Checkbox */}
                   <div
