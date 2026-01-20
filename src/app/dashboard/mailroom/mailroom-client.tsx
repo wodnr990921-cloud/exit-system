@@ -455,6 +455,7 @@ export default function MailroomClient() {
         const { data: task, error: taskError } = await supabase
           .from("tasks")
           .insert({
+            user_id: currentUser?.id || selectedStaff,
             customer_id: actualCustomerId,
             member_id: actualCustomerId,
             assigned_to: selectedStaff,
