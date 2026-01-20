@@ -403,13 +403,24 @@ export default function MailroomClient() {
 
   const getImageTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      envelope: "편지봉투",
-      letter_content: "편지내용",
-      product_photo: "물품사진",
-      remittance_proof: "송금증빙",
-      unknown: "알수없음",
+      envelope: "📮 봉투 (새업무)",
+      letter_content: "📄 편지 (추가)",
+      product_photo: "📦 물품사진",
+      remittance_proof: "💰 송금증빙",
+      unknown: "❓ 알수없음",
     }
     return labels[type] || type
+  }
+
+  const getImageTypeBadgeColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      envelope: "bg-blue-500 text-white border-blue-600",
+      letter_content: "bg-green-500 text-white border-green-600",
+      product_photo: "bg-purple-500 text-white border-purple-600",
+      remittance_proof: "bg-amber-500 text-white border-amber-600",
+      unknown: "bg-gray-500 text-white border-gray-600",
+    }
+    return colors[type] || "bg-gray-500 text-white"
   }
 
   const saveOcrText = async () => {
@@ -498,23 +509,87 @@ export default function MailroomClient() {
         aiSummary = "기타 문의"
       }
 
-      // Create task
-      const { data: task, error: taskError } = await supabase
-        .from("tasks")
-        .insert({
-          title: `${selectedCustomer.name} - ${aiSummary}`,
-          description: selectedLetter.ocr_text || "",
-          member_id: selectedCustomer.id,
-          letter_id: selectedLetter.id,
-          assignee_id: selectedStaff,
-          status: "assigned",
-          ai_summary: aiSummary,
-          total_amount: taskItems.reduce((sum, item) => sum + item.amount, 0),
-        })
-        .select()
-        .single()
+      // 🔍 봉투 판별 로직
+      const isEnvelope = selectedLetter.ocr_image_type === "envelope"
+      let task: any
 
-      if (taskError) throw taskError
+      if (isEnvelope) {
+        // 📮 봉투가 있는 경우 → 새 업무 생성
+        const { data: newTask, error: taskError } = await supabase
+          .from("tasks")
+          .insert({
+            title: `${selectedCustomer.name} - ${aiSummary}`,
+            description: selectedLetter.ocr_text || "",
+            member_id: selectedCustomer.id,
+            customer_id: selectedCustomer.id,
+            letter_id: selectedLetter.id,
+            assignee_id: selectedStaff,
+            status: "assigned",
+            ai_summary: aiSummary,
+            total_amount: taskItems.reduce((sum, item) => sum + item.amount, 0),
+          })
+          .select()
+          .single()
+
+        if (taskError) throw taskError
+        task = newTask
+
+        toast({
+          title: "📮 새 업무 생성",
+          description: `봉투 감지 - 새로운 티켓이 생성되었습니다. (${task.ticket_no})`,
+        })
+      } else {
+        // 📄 편지 내용만 있는 경우 → 기존 업무에 추가
+        // 같은 회원의 가장 최근 업무 찾기 (status가 'assigned' 또는 'pending'인 것만)
+        const { data: existingTask, error: findError } = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("member_id", selectedCustomer.id)
+          .in("status", ["assigned", "pending"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (findError && findError.code !== "PGRST116") {
+          // PGRST116은 "no rows returned" 오류
+          throw findError
+        }
+
+        if (existingTask) {
+          // 기존 업무에 추가
+          task = existingTask
+
+          toast({
+            title: "📄 기존 업무에 추가",
+            description: `편지 내용 감지 - 티켓 ${task.ticket_no}에 추가되었습니다.`,
+          })
+        } else {
+          // 기존 업무가 없으면 새로 생성
+          const { data: newTask, error: taskError } = await supabase
+            .from("tasks")
+            .insert({
+              title: `${selectedCustomer.name} - ${aiSummary}`,
+              description: selectedLetter.ocr_text || "",
+              member_id: selectedCustomer.id,
+              customer_id: selectedCustomer.id,
+              letter_id: selectedLetter.id,
+              assignee_id: selectedStaff,
+              status: "assigned",
+              ai_summary: aiSummary,
+              total_amount: taskItems.reduce((sum, item) => sum + item.amount, 0),
+            })
+            .select()
+            .single()
+
+          if (taskError) throw taskError
+          task = newTask
+
+          toast({
+            title: "📄 새 업무 생성",
+            description: `기존 업무 없음 - 새로운 티켓이 생성되었습니다. (${task.ticket_no})`,
+          })
+        }
+      }
 
       // Create task items
       if (taskItems.length > 0) {
@@ -539,7 +614,7 @@ export default function MailroomClient() {
 
       if (letterError) throw letterError
 
-      setSuccess(`티켓이 생성되었습니다. (${task.ticket_no})`)
+      setSuccess(`배정 완료: ${task.ticket_no}`)
 
       // Reset form and move to next letter
       resetForm()
@@ -918,8 +993,7 @@ export default function MailroomClient() {
                   {letter.ocr_image_type && (
                     <div className="mt-1">
                       <Badge
-                        variant="outline"
-                        className={`text-[10px] px-1 py-0 h-4 ${selectedLetter?.id === letter.id ? "border-white/50 text-white/90" : ""}`}
+                        className={`text-[10px] px-1.5 py-0 h-5 font-medium ${getImageTypeBadgeColor(letter.ocr_image_type)} ${selectedLetter?.id === letter.id ? "opacity-90" : ""}`}
                       >
                         {getImageTypeLabel(letter.ocr_image_type)}
                       </Badge>
@@ -1006,7 +1080,7 @@ export default function MailroomClient() {
                           OCR 결과
                         </span>
                         {selectedLetter.ocr_image_type && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge className={`text-xs font-medium ${getImageTypeBadgeColor(selectedLetter.ocr_image_type)}`}>
                             {getImageTypeLabel(selectedLetter.ocr_image_type)}
                           </Badge>
                         )}
