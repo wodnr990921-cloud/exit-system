@@ -134,6 +134,11 @@ export default function IntakeClient() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingTask, setDeletingTask] = useState(false)
+
+  // 일괄 삭제
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
+  const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = useState(false)
+  const [batchDeleting, setBatchDeleting] = useState(false)
   
   const supabase = createClient()
   const { toast } = useToast()
@@ -453,6 +458,58 @@ export default function IntakeClient() {
     }
   }
 
+  // 티켓 선택/해제
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds(prev => 
+      prev.includes(taskId) 
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    )
+  }
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    if (selectedTaskIds.length === tasks.length) {
+      setSelectedTaskIds([])
+    } else {
+      setSelectedTaskIds(tasks.map(t => t.id))
+    }
+  }
+
+  // 일괄 삭제
+  const handleBatchDelete = async () => {
+    if (selectedTaskIds.length === 0) return
+
+    setBatchDeleting(true)
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .in("id", selectedTaskIds)
+
+      if (error) throw error
+
+      toast({
+        title: "일괄 삭제 완료",
+        description: `${selectedTaskIds.length}개의 티켓이 삭제되었습니다.`,
+      })
+
+      // Reset and reload
+      setSelectedTaskIds([])
+      setIsBatchDeleteDialogOpen(false)
+      await loadAllTasks()
+    } catch (error: any) {
+      console.error("Batch delete error:", error)
+      toast({
+        variant: "destructive",
+        title: "삭제 오류",
+        description: error.message || "일괄 삭제 중 오류가 발생했습니다.",
+      })
+    } finally {
+      setBatchDeleting(false)
+    }
+  }
+
   const handleAddComment = async () => {
     if (!newComment.trim() || !selectedTask) return
 
@@ -642,8 +699,45 @@ export default function IntakeClient() {
         {/* 티켓 목록 */}
         <Card className="border-gray-200 dark:border-gray-800 shadow-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold">티켓 목록</CardTitle>
-            <CardDescription>총 {tasks.length}개의 티켓</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold">티켓 목록</CardTitle>
+                <CardDescription>
+                  총 {tasks.length}개의 티켓
+                  {selectedTaskIds.length > 0 && (
+                    <span className="ml-2 text-blue-600 dark:text-blue-400 font-semibold">
+                      ({selectedTaskIds.length}개 선택됨)
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
+              
+              {/* 관리자 전용: 일괄 삭제 버튼 */}
+              {currentUser && (currentUser.role === "ceo" || currentUser.role === "admin") && (
+                <div className="flex items-center gap-3">
+                  {selectedTaskIds.length > 0 && (
+                    <>
+                      <Button
+                        onClick={toggleSelectAll}
+                        variant="outline"
+                        size="sm"
+                        className="text-gray-900 dark:text-gray-100"
+                      >
+                        {selectedTaskIds.length === tasks.length ? "전체 해제" : "전체 선택"}
+                      </Button>
+                      <Button
+                        onClick={() => setIsBatchDeleteDialogOpen(true)}
+                        variant="destructive"
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        🗑️ {selectedTaskIds.length}개 삭제
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loadingTasks ? (
@@ -652,16 +746,41 @@ export default function IntakeClient() {
               <div className="text-center p-12 text-gray-500 dark:text-gray-400">티켓이 없습니다.</div>
             ) : (
               <div className="space-y-4">
-                {tasks.map((task) => (
-                  <Card
-                    key={task.id}
-                    className="cursor-pointer hover:shadow-lg transition-all border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600 bg-white dark:bg-gray-900"
-                    onClick={() => handleTaskClick(task)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="space-y-3">
-                        {/* 첫 줄: (상태) (반송) (기관수번이름) (날짜) */}
-                        <div className="flex flex-wrap items-center gap-3">
+                {tasks.map((task) => {
+                  const isSelected = selectedTaskIds.includes(task.id)
+                  const showCheckbox = currentUser && (currentUser.role === "ceo" || currentUser.role === "admin")
+                  
+                  return (
+                    <Card
+                      key={task.id}
+                      className={`cursor-pointer hover:shadow-lg transition-all border-2 bg-white dark:bg-gray-900 ${
+                        isSelected 
+                          ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700" 
+                          : "border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600"
+                      }`}
+                      onClick={() => handleTaskClick(task)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="space-y-3">
+                          {/* 첫 줄: (체크박스) (상태) (반송) (기관수번이름) (날짜) */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            {/* 관리자 전용: 체크박스 */}
+                            {showCheckbox && (
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleTaskSelection(task.id)
+                                }}
+                                className="flex items-center"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                                />
+                              </div>
+                            )}
                           {/* 상태 */}
                           <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${getStatusColor(task.status)}`}>
                             {getStatusLabel(task.status)}
@@ -760,7 +879,8 @@ export default function IntakeClient() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
@@ -1225,6 +1345,50 @@ export default function IntakeClient() {
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
                 {deletingTask ? "삭제 중..." : "삭제"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 일괄 삭제 확인 Dialog */}
+        <Dialog open={isBatchDeleteDialogOpen} onOpenChange={setIsBatchDeleteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-red-600">⚠️ 일괄 삭제 확인</DialogTitle>
+              <DialogDescription>
+                선택한 {selectedTaskIds.length}개의 티켓을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 border-y border-gray-200 dark:border-gray-700">
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                삭제될 티켓:
+              </p>
+              <div className="max-h-[200px] overflow-y-auto space-y-1">
+                {tasks
+                  .filter(t => selectedTaskIds.includes(t.id))
+                  .map(task => (
+                    <div key={task.id} className="text-sm text-gray-700 dark:text-gray-300 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      • {task.ticket_no || task.id.slice(0, 8)} - {task.title}
+                    </div>
+                  ))}
+              </div>
+            </div>
+            <DialogFooter className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsBatchDeleteDialogOpen(false)}
+                disabled={batchDeleting}
+                className="flex-1"
+              >
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBatchDelete}
+                disabled={batchDeleting}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                {batchDeleting ? "삭제 중..." : `${selectedTaskIds.length}개 삭제`}
               </Button>
             </DialogFooter>
           </DialogContent>
