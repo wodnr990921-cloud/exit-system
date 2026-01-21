@@ -850,12 +850,7 @@ export default function MailroomClient() {
 
       console.log(`🎉 배정 완료! ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}`)
       
-      // Reset form and close dialog FIRST
-      setShowDialog(false)
-      resetForm()
-      clearSelection()
-      
-      // Then show success message
+      // Show success message
       toast({
         title: "✅ 배정 완료",
         description: `${selectedLetters.length}개 편지가 ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}에게 배정되었습니다.`,
@@ -868,6 +863,11 @@ export default function MailroomClient() {
       // Reload data
       await loadLetters()
       await loadDailyStats()
+      
+      // Reset form and close dialog LAST (after all async operations)
+      setShowDialog(false)
+      resetForm()
+      clearSelection()
 
     } catch (error: any) {
       console.error("❌ [우편실] 배정 실패:", error)
@@ -1314,7 +1314,7 @@ export default function MailroomClient() {
                           </div>
                         </div>
 
-                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                           <img
                             src={letter.file_url}
                             alt="Letter"
