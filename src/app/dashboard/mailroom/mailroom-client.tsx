@@ -847,6 +847,34 @@ export default function MailroomClient() {
       if (taskItems.length > 0) {
         const { error: itemsError } = await supabase.from("task_items").insert(taskItems)
         if (itemsError) throw itemsError
+        console.log(`✅ ${taskItems.length}개의 task_items 생성 완료`)
+      }
+
+      // Update task status based on what was added
+      let newTaskStatus = "pending"
+      const hasReply = replyText.trim().length > 0
+      const hasOrder = activeTab === "books" || activeTab === "purchase" || activeTab === "sports"
+      
+      if (hasReply) {
+        newTaskStatus = "in_progress" // 답변 작성 시 처리중으로 변경
+      } else if (hasOrder) {
+        newTaskStatus = "in_progress" // 발주 시 처리중으로 변경
+      }
+
+      // Update task status
+      const { error: taskUpdateError } = await supabase
+        .from("tasks")
+        .update({ 
+          status: newTaskStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", taskId)
+
+      if (taskUpdateError) {
+        console.warn("⚠️ 티켓 상태 업데이트 실패:", taskUpdateError)
+        // Don't throw - this is not critical
+      } else {
+        console.log(`✅ 티켓 상태 업데이트: ${newTaskStatus}`)
       }
 
       // Update all selected letters' status and link to task
@@ -860,27 +888,37 @@ export default function MailroomClient() {
         .in("id", letterIds)
 
       if (letterError) throw letterError
+      console.log(`✅ ${letterIds.length}개 편지 상태 업데이트 완료`)
 
       console.log(`🎉 배정 완료! ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}`)
       
       // Show success message
+      const successMessage = hasReply 
+        ? "답변 작성 및 배정 완료" 
+        : hasOrder 
+        ? "발주 처리 및 배정 완료" 
+        : "배정 완료"
+      
       toast({
-        title: "✅ 배정 완료",
+        title: `✅ ${successMessage}`,
         description: `${selectedLetters.length}개 편지가 ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}에게 배정되었습니다.`,
       })
 
       setSuccess(
-        `배정 완료: ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "(미등록 회원)" : selectedCustomer.name}`
+        `${successMessage}: ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "(미등록 회원)" : selectedCustomer.name}`
       )
 
-      // Reload data
-      await loadLetters()
-      await loadDailyStats()
-      
-      // Reset form and close dialog LAST (after all async operations)
+      // Reset form and close dialog FIRST
+      console.log("📤 다이얼로그 닫는 중...")
       setShowDialog(false)
       resetForm()
       clearSelection()
+      
+      // Then reload data in background
+      console.log("🔄 데이터 새로고침 중...")
+      await loadLetters()
+      await loadDailyStats()
+      console.log("✅ 모든 처리 완료!")
 
     } catch (error: any) {
       console.error("❌ [우편실] 배정 실패:", error)

@@ -292,9 +292,10 @@ export default function ClosingClient() {
     }
 
     try {
+      // Insert reply as task_item
       const { error: taskItemError } = await supabase.from("task_items").insert({
         task_id: selectedTask.id,
-        category: "답변",
+        category: "inquiry",
         description: taskReplyText.trim(),
         amount: 0,
         status: "approved",
@@ -302,7 +303,20 @@ export default function ClosingClient() {
 
       if (taskItemError) throw taskItemError
 
-      setSuccess("답변이 저장되었습니다.")
+      // Update task status to in_progress
+      const { error: updateError } = await supabase
+        .from("tasks")
+        .update({ 
+          status: "in_progress",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", selectedTask.id)
+
+      if (updateError) {
+        console.warn("Failed to update task status:", updateError)
+      }
+
+      setSuccess("✅ 답변이 저장되고 티켓 상태가 업데이트되었습니다.")
       setTaskReplyText("")
       loadTasks()
 
@@ -327,7 +341,7 @@ export default function ClosingClient() {
             customer:customers(name, member_number, address)
           )
         `)
-        .eq("category", "답변")
+        .eq("category", "inquiry")
         .order("created_at", { ascending: false })
         .limit(100)
 

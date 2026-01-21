@@ -1175,9 +1175,10 @@ export default function IntakeClient() {
                       if (!selectedTask || !taskReplyText.trim()) return
 
                       try {
+                        // Insert reply as task_item
                         const { error } = await supabase.from("task_items").insert({
                           task_id: selectedTask.id,
-                          category: "답변",
+                          category: "inquiry",
                           description: taskReplyText.trim(),
                           amount: 0,
                           status: "approved",
@@ -1185,11 +1186,30 @@ export default function IntakeClient() {
 
                         if (error) throw error
 
+                        // Update task status to in_progress
+                        const { error: updateError } = await supabase
+                          .from("tasks")
+                          .update({ 
+                            status: "in_progress",
+                            updated_at: new Date().toISOString()
+                          })
+                          .eq("id", selectedTask.id)
+
+                        if (updateError) {
+                          console.warn("Failed to update task status:", updateError)
+                        }
+
                         setTaskReplyText("")
                         toast({
-                          title: "답변 저장 완료",
-                          description: "답변이 티켓에 저장되었습니다.",
+                          title: "✅ 답변 저장 완료",
+                          description: "답변이 티켓에 저장되고 상태가 업데이트되었습니다.",
                         })
+
+                        // Refresh task data
+                        await loadAllTasks()
+                        if (selectedTask) {
+                          await handleTaskClick(selectedTask.id)
+                        }
                       } catch (error: any) {
                         console.error("Save reply error:", error)
                         toast({
