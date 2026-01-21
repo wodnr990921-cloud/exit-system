@@ -1417,11 +1417,11 @@ export default function MailroomClient() {
                 {selectedLetters.length === 1 ? (
                   <>
                     <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
-                      <CardContent className="p-2 h-full">
+                      <CardContent className="p-2 h-full flex items-center justify-center">
                         <TransformWrapper
                           ref={transformRef}
-                          initialScale={1}
-                          minScale={0.5}
+                          initialScale={0.25}
+                          minScale={0.1}
                           maxScale={5}
                           centerOnInit
                           wheel={{ step: 0.1 }}
@@ -1433,10 +1433,12 @@ export default function MailroomClient() {
                             <img
                               src={selectedLetters[0].file_url}
                               alt="Letter"
-                              className="max-w-full max-h-full object-contain"
+                              className="object-contain"
                               style={{
                                 transform: `rotate(${rotation}deg)`,
                                 transition: "transform 0.3s ease",
+                                maxWidth: "100%",
+                                maxHeight: "100%",
                               }}
                             />
                           </TransformComponent>
@@ -1445,25 +1447,45 @@ export default function MailroomClient() {
                     </Card>
                   </>
                 ) : (
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                     {selectedLetters.map((letter, index) => (
                       <Card key={letter.id} className="overflow-hidden">
-                        <CardContent className="p-3">
-                          <Badge className="mb-2 bg-blue-600">
-                            편지 {index + 1}
-                          </Badge>
-                          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-2">
-                            <img
-                              src={letter.file_url}
-                              alt={`Letter ${index + 1}`}
-                              className="w-full max-h-[180px] object-contain rounded"
-                            />
+                        <CardContent className="p-2">
+                          <div className="flex items-start gap-3">
+                            {/* Badge and Image */}
+                            <div className="flex-shrink-0">
+                              <Badge className="mb-1 bg-blue-600 text-xs">
+                                편지 {index + 1}
+                              </Badge>
+                              <div className="bg-gray-50 dark:bg-gray-900 rounded p-1 mt-1">
+                                <img
+                                  src={letter.file_url}
+                                  alt={`Letter ${index + 1}`}
+                                  className="w-24 h-24 object-contain rounded cursor-pointer hover:opacity-75 transition-opacity"
+                                  onClick={() => {
+                                    // 클릭 시 이미지 확대
+                                    const win = window.open(letter.file_url, '_blank')
+                                    if (win) win.focus()
+                                  }}
+                                  title="클릭하여 크게 보기"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* OCR Summary */}
+                            <div className="flex-1 min-w-0">
+                              {letter.ocr_summary && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-4">
+                                  {letter.ocr_summary}
+                                </p>
+                              )}
+                              {!letter.ocr_summary && letter.ocr_text && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-4">
+                                  {letter.ocr_text.substring(0, 150)}...
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          {letter.ocr_summary && (
-                            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                              {letter.ocr_summary}
-                            </p>
-                          )}
                         </CardContent>
                       </Card>
                     ))}
