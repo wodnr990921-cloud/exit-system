@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,6 +36,8 @@ import {
   Move,
   Save,
   ArrowRight,
+  ArrowLeft,
+  Home,
   Book,
   ShoppingCart,
   Trophy,
@@ -92,6 +95,7 @@ interface DailyStats {
 }
 
 export default function MailroomClient() {
+  const router = useRouter()
   const [letters, setLetters] = useState<Letter[]>([])
   const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null)
   const [selectedLetters, setSelectedLetters] = useState<Letter[]>([]) // 여러 편지 선택
@@ -1149,6 +1153,27 @@ export default function MailroomClient() {
           >
             <FileText className="w-4 h-4 mr-2" />
             답변 일괄 출력
+          </Button>
+
+          {/* Navigation Buttons */}
+          <Button
+            onClick={() => router.back()}
+            size="sm"
+            variant="outline"
+            className="text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 hover:bg-gray-50"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            뒤로가기
+          </Button>
+
+          <Button
+            onClick={() => router.push("/dashboard")}
+            size="sm"
+            variant="outline"
+            className="text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-700 hover:bg-gray-50"
+          >
+            <Home className="w-4 h-4 mr-2" />
+            홈으로
           </Button>
 
           {/* Staff Stats */}
