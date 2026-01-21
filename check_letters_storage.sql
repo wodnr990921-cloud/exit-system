@@ -8,8 +8,6 @@ SELECT
   l.file_path,
   l.task_id,
   l.status,
-  l.ocr_summary,
-  l.ocr_image_type,
   l.created_at,
   l.user_id,
   -- Check if file exists in storage

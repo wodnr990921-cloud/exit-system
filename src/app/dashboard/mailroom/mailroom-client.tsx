@@ -960,6 +960,7 @@ export default function MailroomClient() {
             .from("letters")
             .update({
               ocr_text: ocrResult.rawText,
+              ocr_summary: ocrResult.summary || ocrResult.rawText?.substring(0, 200), // 요약 또는 앞 200자
               ocr_confidence: ocrResult.confidence,
               ocr_image_type: ocrResult.imageType,
               ocr_prohibited_content: ocrResult.prohibitedContent,
