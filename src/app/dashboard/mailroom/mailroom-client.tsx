@@ -323,6 +323,7 @@ export default function MailroomClient() {
   }
 
   const resetForm = () => {
+    setSelectedLetter(null)
     setSelectedCustomer(null)
     setCustomerSearch("")
     setCustomers([])
@@ -718,13 +719,21 @@ export default function MailroomClient() {
         const letterType = selectedLetter.ocr_image_type === "envelope" ? "신규 편지" : "편지 내용"
         const taskTitle = `[우편실] ${letterType} - ${selectedCustomer.name || "미등록 회원"}`
         
-        console.log(`📝 새 티켓 생성 중... 제목: ${taskTitle}`)
+        // Combine OCR summaries from all selected letters
+        const combinedSummary = selectedLetters
+          .filter((letter) => letter.ocr_summary || letter.ocr_text)
+          .map((letter) => letter.ocr_summary || letter.ocr_text?.substring(0, 200))
+          .join(" / ")
+        
+        console.log(`📝 새 티켓 생성 중... 제목: ${taskTitle}, 요약: ${combinedSummary.substring(0, 50)}...`)
         
         const { data: task, error: taskError } = await supabase
           .from("tasks")
           .insert({
             user_id: currentUser?.id || selectedStaff,
             title: taskTitle,
+            summary: combinedSummary || "편지 내용",
+            description: combinedSummary || "편지 내용",
             customer_id: actualCustomerId,
             member_id: actualCustomerId,
             assigned_to: selectedStaff,
@@ -841,8 +850,14 @@ export default function MailroomClient() {
 
       console.log(`🎉 배정 완료! ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}`)
       
+      // Reset form and close dialog FIRST
+      setShowDialog(false)
+      resetForm()
+      clearSelection()
+      
+      // Then show success message
       toast({
-        title: "배정 완료",
+        title: "✅ 배정 완료",
         description: `${selectedLetters.length}개 편지가 ${isUnknownCustomer ? "미등록 회원" : selectedCustomer.name}에게 배정되었습니다.`,
       })
 
@@ -850,10 +865,7 @@ export default function MailroomClient() {
         `배정 완료: ${selectedLetters.length}개 편지 → ${isUnknownCustomer ? "(미등록 회원)" : selectedCustomer.name}`
       )
 
-      // Reset form and move to next letter
-      resetForm()
-      clearSelection()
-      setShowDialog(false)
+      // Reload data
       await loadLetters()
       await loadDailyStats()
 
