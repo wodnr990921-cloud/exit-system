@@ -1314,7 +1314,7 @@ export default function MailroomClient() {
                           </div>
                         </div>
 
-                        <div className="w-40 h-40 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                           <img
                             src={letter.file_url}
                             alt="Letter"
@@ -1410,7 +1410,7 @@ export default function MailroomClient() {
             </DialogTitle>
           </DialogHeader>
 
-          {selectedLetter && selectedLetters.length > 0 && (
+          {selectedLetters.length > 0 && (
             <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden px-6 py-4">
               {/* Left: Images */}
               <div className="flex flex-col space-y-3 h-full overflow-hidden">
@@ -1461,7 +1461,7 @@ export default function MailroomClient() {
                                 <img
                                   src={letter.file_url}
                                   alt={`Letter ${index + 1}`}
-                                  className="w-24 h-24 object-contain rounded cursor-pointer hover:opacity-75 transition-opacity"
+                                  className="w-16 h-16 object-contain rounded cursor-pointer hover:opacity-75 transition-opacity"
                                   onClick={() => {
                                     // 클릭 시 이미지 확대
                                     const win = window.open(letter.file_url, '_blank')
