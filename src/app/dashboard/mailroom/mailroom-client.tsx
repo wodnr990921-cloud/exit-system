@@ -746,7 +746,6 @@ export default function MailroomClient() {
           .insert({
             user_id: currentUser?.id || selectedStaff,
             title: taskTitle,
-            summary: combinedSummary || "편지 내용",
             description: combinedSummary || "편지 내용",
             customer_id: actualCustomerId,
             member_id: actualCustomerId,
