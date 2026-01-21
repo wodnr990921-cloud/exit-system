@@ -695,15 +695,21 @@ export default function ClosingClient() {
 
                             {/* 회원 정보 */}
                             {task.customer && (
-                              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                                {task.customer.name || "회원 정보 없음"} ({task.customer.member_number || "-"})
-                              </span>
+                              <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+                                <span className="text-xs text-gray-500 dark:text-gray-500 font-semibold">회원:</span>
+                                <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                                  {task.customer.name || "회원 정보 없음"} ({task.customer.member_number || "-"})
+                                </span>
+                              </div>
                             )}
 
                             {/* 날짜 */}
-                            <span className="text-sm text-gray-500 dark:text-gray-500 ml-auto">
-                              {formatDate(task.created_at)}
-                            </span>
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 ml-auto">
+                              <span className="text-xs text-gray-500 dark:text-gray-500 font-semibold">처리일:</span>
+                              <span className="text-sm text-gray-900 dark:text-gray-100">
+                                {formatDate(task.created_at)}
+                              </span>
+                            </div>
                           </div>
 
                           {/* 두 번째 줄: AI 요약 */}
@@ -716,18 +722,20 @@ export default function ClosingClient() {
                           )}
 
                           {/* 세 번째 줄: 금액 및 처리 내역 */}
-                          <div className="flex items-center gap-4 text-sm">
-                            <div className="text-gray-600 dark:text-gray-400">
-                              <span className="text-gray-500 dark:text-gray-500">총액:</span>{" "}
-                              <span className="font-semibold text-green-600 dark:text-green-400">
+                          <div className="flex items-center gap-3 text-sm flex-wrap">
+                            {/* 총액 */}
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 dark:bg-green-900/30 rounded-md border border-green-200 dark:border-green-800">
+                              <span className="text-xs text-green-600 dark:text-green-400 font-semibold">총액:</span>
+                              <span className="text-sm text-green-700 dark:text-green-400 font-bold">
                                 {formatAmount(task.total_amount)}원
                               </span>
                             </div>
                             
+                            {/* 처리 항목 */}
                             {task.task_items && task.task_items.length > 0 && (
-                              <div className="text-gray-600 dark:text-gray-400">
-                                <span className="text-gray-500 dark:text-gray-500">처리 항목:</span>{" "}
-                                <span className="font-medium">{task.task_items.length}개</span>
+                              <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 dark:bg-purple-900/30 rounded-md border border-purple-200 dark:border-purple-800">
+                                <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">처리 항목:</span>
+                                <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">{task.task_items.length}개</span>
                               </div>
                             )}
                           </div>

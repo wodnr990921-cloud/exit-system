@@ -823,19 +823,25 @@ export default function IntakeClient() {
                             </span>
                           )}
 
-                          {/* 수용기관+수번+이름 */}
+                          {/* 회원 정보 */}
                           {task.customer && (
-                            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                              {task.customer.institution && task.customer.prison_number
-                                ? `${task.customer.institution} ${task.customer.prison_number} ${task.customer.name}`
-                                : task.customer.name || "-"}
-                            </span>
+                            <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
+                              <span className="text-xs text-gray-500 dark:text-gray-500 font-semibold">회원:</span>
+                              <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                                {task.customer.institution && task.customer.prison_number
+                                  ? `${task.customer.institution} ${task.customer.prison_number} ${task.customer.name}`
+                                  : task.customer.name || "-"}
+                              </span>
+                            </div>
                           )}
 
                           {/* 날짜 */}
-                          <span className="text-sm text-gray-500 dark:text-gray-500">
-                            {formatDate(task.created_at)}
-                          </span>
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 ml-auto">
+                            <span className="text-xs text-gray-500 dark:text-gray-500 font-semibold">등록:</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">
+                              {formatDate(task.created_at)}
+                            </span>
+                          </div>
                         </div>
 
                         {/* 두 번째 줄: 카테고리    요약내용 */}
@@ -856,11 +862,11 @@ export default function IntakeClient() {
                         </div>
 
                         {/* 세 번째 줄: 담당직원 변동포인트 */}
-                        <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-3 text-sm flex-wrap">
                           {/* 담당직원 */}
-                          <div className="text-gray-600 dark:text-gray-400">
-                            <span className="text-gray-500 dark:text-gray-500">담당:</span>{" "}
-                            <span className="font-medium">
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-md border border-blue-200 dark:border-blue-800">
+                            <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">담당:</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
                               {task.assigned_to_user?.name || task.assigned_to_user?.username || "-"}
                             </span>
                           </div>
@@ -879,15 +885,19 @@ export default function IntakeClient() {
 
                           {/* 변동포인트 */}
                           {task.amount && (
-                            <div className={`font-medium ${
+                            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-md border font-semibold ${
                               task.amount > 0
-                                ? "text-green-600 dark:text-green-400"
+                                ? "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400"
                                 : task.amount < 0
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-gray-600 dark:text-gray-400"
+                                ? "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+                                : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-400"
                             }`}>
-                              {task.amount > 0 ? "+" : ""}{formatNumber(task.amount)}원
-                              {task.point_category && ` (${task.point_category})`}
+                              <span className="text-xs font-semibold opacity-75">
+                                {task.point_category ? `${task.point_category}:` : "금액:"}
+                              </span>
+                              <span className="text-sm">
+                                {task.amount > 0 ? "+" : ""}{formatNumber(task.amount)}원
+                              </span>
                             </div>
                           )}
 

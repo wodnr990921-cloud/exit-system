@@ -1097,6 +1097,29 @@ export default function MailroomClient() {
     return "📧 편지"
   }
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const letterDate = new Date(date)
+    letterDate.setHours(0, 0, 0, 0)
+
+    if (letterDate.getTime() === today.getTime()) {
+      return "오늘 " + date.toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    }
+
+    return date.toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
       {/* Top Header */}
@@ -1332,9 +1355,12 @@ export default function MailroomClient() {
                           </span>
 
                           {/* 날짜 */}
-                          <span className="text-sm text-gray-500 dark:text-gray-500 ml-auto">
-                            {formatDate(letter.created_at)}
-                          </span>
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 ml-auto">
+                            <span className="text-xs text-gray-500 dark:text-gray-500 font-semibold">업로드:</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">
+                              {formatDate(letter.created_at)}
+                            </span>
+                          </div>
                         </div>
 
                         {/* 두 번째 줄: OCR 요약 */}
@@ -1345,11 +1371,17 @@ export default function MailroomClient() {
                         </div>
 
                         {/* 세 번째 줄: OCR 신뢰도 */}
-                        <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-3 text-sm flex-wrap">
                           {letter.ocr_confidence && (
-                            <div className="text-gray-600 dark:text-gray-400">
-                              <span className="text-gray-500 dark:text-gray-500">OCR 신뢰도:</span>{" "}
-                              <span className="font-medium">{letter.ocr_confidence}%</span>
+                            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-md border font-semibold ${
+                              letter.ocr_confidence >= 90
+                                ? "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400"
+                                : letter.ocr_confidence >= 70
+                                ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400"
+                                : "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"
+                            }`}>
+                              <span className="text-xs font-semibold opacity-75">OCR 신뢰도:</span>
+                              <span className="text-sm">{letter.ocr_confidence}%</span>
                             </div>
                           )}
                         </div>
