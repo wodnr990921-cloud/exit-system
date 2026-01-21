@@ -154,12 +154,21 @@ export default function IntakeClient() {
   const loadCurrentUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
+      console.log("🔍 Auth User:", user?.id)
+      
       if (user) {
-        const { data: userData } = await supabase
+        const { data: userData, error } = await supabase
           .from("users")
           .select("*")
           .eq("id", user.id)
           .single()
+        
+        console.log("👤 User Data:", userData)
+        console.log("🎭 User Role:", userData?.role)
+        
+        if (error) {
+          console.error("❌ Error fetching user data:", error)
+        }
         
         setCurrentUser(userData)
       }
@@ -1131,6 +1140,13 @@ export default function IntakeClient() {
 
             <DialogFooter className="flex items-center justify-between">
               <div>
+                {(() => {
+                  console.log("🔍 Delete Button Check - currentUser:", currentUser)
+                  console.log("🔍 Delete Button Check - role:", currentUser?.role)
+                  console.log("🔍 Delete Button Check - isCEO:", currentUser?.role === "ceo")
+                  console.log("🔍 Delete Button Check - isAdmin:", currentUser?.role === "admin")
+                  return null
+                })()}
                 {currentUser && (currentUser.role === "ceo" || currentUser.role === "admin") && (
                   <Button
                     variant="destructive"
