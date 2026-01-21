@@ -668,12 +668,25 @@ export default function MailroomClient() {
   }
 
   const handleSaveAndNext = async () => {
-    if (!selectedLetter || !selectedCustomer || !selectedStaff) {
-      setError("회원과 담당자를 선택해주세요.")
+    // 검증: 편지, 회원, 담당자 선택 확인
+    if (selectedLetters.length === 0) {
+      setError("배정할 편지를 선택해주세요.")
+      return
+    }
+    
+    if (!selectedCustomer) {
+      setError("회원을 선택해주세요.")
+      return
+    }
+    
+    if (!selectedStaff) {
+      setError("담당자를 선택해주세요.")
       return
     }
 
     console.log(`🎯 [우편실] 배정 시작 - ${selectedLetters.length}개 편지`)
+    console.log(`👤 선택된 회원:`, selectedCustomer)
+    console.log(`👨‍💼 선택된 담당자:`, selectedStaff)
     setProcessing(true)
 
     try {
