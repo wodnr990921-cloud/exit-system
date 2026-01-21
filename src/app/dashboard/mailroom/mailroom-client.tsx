@@ -810,12 +810,12 @@ export default function MailroomClient() {
         if (combinedOcrTexts) {
           taskItems.push({
             task_id: taskId,
-            category: "편지 내용",
+            category: "문의",
             description: combinedOcrTexts,
             amount: 0,
             status: "pending",
           })
-          console.log(`✅ 편지 내용 task_item 생성됨`)
+          console.log(`✅ 편지 내용 task_item 생성됨 (카테고리: 문의)`)
         }
       }
 
