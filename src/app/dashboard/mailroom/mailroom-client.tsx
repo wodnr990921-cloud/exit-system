@@ -1257,98 +1257,105 @@ export default function MailroomClient() {
             <p className="text-sm text-gray-500 dark:text-gray-500">편지를 촬영하거나 업로드해주세요</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {letters.map((letter) => {
               const isSelected = selectedLetters.some((l) => l.id === letter.id)
               
               return (
                 <Card
                   key={letter.id}
-                  className={`group cursor-pointer hover:shadow-xl transition-all duration-200 hover:scale-[1.02] relative overflow-hidden border-2 ${
+                  className={`cursor-pointer hover:shadow-lg transition-all border-2 bg-white dark:bg-gray-900 ${
                     isSelected
-                      ? "border-blue-500 ring-2 ring-blue-300"
-                      : "hover:border-blue-500"
+                      ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700"
+                      : "border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600"
                   }`}
                   onClick={() => handleLetterClick(letter)}
                 >
-                  {/* Checkbox */}
-                  <div
-                    className="absolute top-2 left-2 z-20"
-                    onClick={(e) => toggleLetterSelection(letter, e)}
-                  >
-                    <div
-                      className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
-                        isSelected
-                          ? "bg-blue-600 border-blue-600"
-                          : "bg-white border-gray-300 group-hover:border-blue-500"
-                      }`}
-                    >
-                      {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
-                    </div>
-                  </div>
-
-                  {/* Delete Button */}
-                  <button
-                    onClick={(e) => deleteLetter(letter.id, e)}
-                    className="absolute top-2 right-2 p-2 rounded-full bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg"
-                    title="편지 삭제"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-
-                  {/* Prohibited Content Alert */}
-                  {letter.ocr_prohibited_content?.found && (
-                    <div className="absolute top-10 left-2 z-10">
-                      <Badge variant="destructive" className="animate-pulse">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        금지어 감지
-                      </Badge>
-                    </div>
-                  )}
-
-                <CardContent className="p-0">
-                  {/* Image Preview - Reduced size */}
-                  <div className="h-20 bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                    <img
-                      src={letter.file_url}
-                      alt="Letter"
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-4 space-y-2">
-                    {/* Title with Badge */}
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-50">
-                        {getLetterTitle(letter)}
-                      </h3>
-                      {letter.ocr_confidence && (
-                        <Badge
-                          variant={
-                            letter.ocr_confidence >= 90
-                              ? "default"
-                              : letter.ocr_confidence >= 70
-                                ? "secondary"
-                                : "destructive"
-                          }
+                <CardContent className="p-6">
+                    <div className="flex gap-6">
+                      {/* Left: Image Preview */}
+                      <div className="flex-shrink-0 relative">
+                        {/* Checkbox */}
+                        <div
+                          className="absolute -top-2 -left-2 z-10"
+                          onClick={(e) => toggleLetterSelection(letter, e)}
                         >
-                          {letter.ocr_confidence}%
-                        </Badge>
-                      )}
+                          <div
+                            className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                              isSelected
+                                ? "bg-blue-600 border-blue-600"
+                                : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                            }`}
+                          >
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                          </div>
+                        </div>
+
+                        <div className="w-40 h-40 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                          <img
+                            src={letter.file_url}
+                            alt="Letter"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        {/* Delete Button */}
+                        <button
+                          onClick={(e) => deleteLetter(letter.id, e)}
+                          className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg z-10"
+                          title="편지 삭제"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Right: Content */}
+                      <div className="flex-1 space-y-3">
+                        {/* 첫 줄: 상태 배지들과 날짜 */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          {/* 편지 타입 */}
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                            {getLetterTitle(letter)}
+                          </span>
+
+                          {/* 금지어 감지 */}
+                          {letter.ocr_prohibited_content?.found && (
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 animate-pulse">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              금지어 감지
+                            </span>
+                          )}
+
+                          {/* 상태 */}
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            {letter.status === "pending" ? "대기중" : "처리완료"}
+                          </span>
+
+                          {/* 날짜 */}
+                          <span className="text-sm text-gray-500 dark:text-gray-500 ml-auto">
+                            {formatDate(letter.created_at)}
+                          </span>
+                        </div>
+
+                        {/* 두 번째 줄: OCR 요약 */}
+                        <div>
+                          <p className="text-base text-gray-900 dark:text-gray-100 leading-relaxed line-clamp-3">
+                            {getOcrSummary(letter)}
+                          </p>
+                        </div>
+
+                        {/* 세 번째 줄: OCR 신뢰도 */}
+                        <div className="flex items-center gap-4 text-sm">
+                          {letter.ocr_confidence && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="text-gray-500 dark:text-gray-500">OCR 신뢰도:</span>{" "}
+                              <span className="font-medium">{letter.ocr_confidence}%</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-
-                    {/* OCR Summary */}
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
-                      {getOcrSummary(letter)}
-                    </p>
-
-                    {/* Timestamp */}
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      {new Date(letter.created_at).toLocaleString("ko-KR")}
-                    </p>
-                  </div>
-                </CardContent>
+                  </CardContent>
               </Card>
               )
             })}
