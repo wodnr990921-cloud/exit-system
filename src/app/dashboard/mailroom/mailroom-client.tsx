@@ -710,8 +710,9 @@ export default function MailroomClient() {
 
       // Determine if this is a new task or appending to existing
       let taskId: string | null = null
+      const firstLetter = selectedLetters[0]
 
-      if (selectedLetter.ocr_image_type === "letter_content" && !isUnknownCustomer) {
+      if (firstLetter.ocr_image_type === "letter_content" && !isUnknownCustomer) {
         // Try to find recent task for this customer
         const { data: recentTask, error: taskError } = await supabase
           .from("tasks")
@@ -729,7 +730,7 @@ export default function MailroomClient() {
       // Create new task if needed
       if (!taskId) {
         // Generate title based on letter type
-        const letterType = selectedLetter.ocr_image_type === "envelope" ? "신규 편지" : "편지 내용"
+        const letterType = firstLetter.ocr_image_type === "envelope" ? "신규 편지" : "편지 내용"
         const taskTitle = `[우편실] ${letterType} - ${selectedCustomer.name || "미등록 회원"}`
         
         // Combine OCR summaries from all selected letters
