@@ -452,7 +452,7 @@ export default function MailroomClient() {
             customer:customers(name, member_number, address)
           )
         `)
-        .eq("category", "답변")
+        .eq("category", "inquiry")
         .order("created_at", { ascending: false })
         .limit(100)
 
@@ -771,7 +771,7 @@ export default function MailroomClient() {
         taskItems.push(
           ...selectedBooks.map((book) => ({
             task_id: taskId,
-            category: "도서",
+            category: "book",
             description: `${book.title} - ${book.author}`,
             amount: book.price,
             status: "pending",
@@ -782,7 +782,7 @@ export default function MailroomClient() {
         taskItems.push(
           ...validItems.map((item) => ({
             task_id: taskId,
-            category: "구매",
+            category: "goods",
             description: item.description,
             amount: item.amount,
             status: "pending",
@@ -791,7 +791,7 @@ export default function MailroomClient() {
       } else if (activeTab === "sports" && sportsData.game_type) {
         taskItems.push({
           task_id: taskId,
-          category: "배팅",
+          category: "betting",
           description: `${sportsData.game_type} ${sportsData.result ? `(${sportsData.result})` : ""}`,
           amount: sportsData.bet_amount,
           status: "pending",
@@ -799,7 +799,7 @@ export default function MailroomClient() {
       } else if (activeTab === "other" && otherInquiry.trim()) {
         taskItems.push({
           task_id: taskId,
-          category: "문의",
+          category: "inquiry",
           description: otherInquiry.trim(),
           amount: 0,
           status: "pending",
@@ -823,7 +823,7 @@ export default function MailroomClient() {
         if (combinedOcrTexts) {
           taskItems.push({
             task_id: taskId,
-            category: "문의",
+            category: "inquiry",
             description: combinedOcrTexts,
             amount: 0,
             status: "pending",
@@ -836,7 +836,7 @@ export default function MailroomClient() {
       if (replyText.trim()) {
         taskItems.push({
           task_id: taskId,
-          category: "답변",
+          category: "inquiry",
           description: replyText.trim(),
           amount: 0,
           status: "pending",
