@@ -670,39 +670,70 @@ export default function ClosingClient() {
               ) : (
                 <div className="space-y-2">
                   {tasks.map((task) => (
-                    <div
+                    <Card
                       key={task.id}
                       onClick={() => setSelectedTask(task)}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                      className={`cursor-pointer hover:shadow-lg transition-all border-2 bg-white dark:bg-gray-900 ${
                         selectedTask?.id === task.id
-                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                          : "border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800"
+                          ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700"
+                          : "border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600"
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-gray-50">
-                            {task.ticket_no || task.id.substring(0, 8).toUpperCase()}
+                      <CardContent className="p-6">
+                        <div className="space-y-3">
+                          {/* 첫 줄: 티켓 번호, 상태, 금액, 날짜 */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            {/* 티켓 번호 */}
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
+                              🎫 {task.ticket_no || task.id.substring(0, 8).toUpperCase()}
+                            </span>
+
+                            {/* 상태 */}
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                              ✅ 처리완료
+                            </span>
+
+                            {/* 회원 정보 */}
+                            {task.customer && (
+                              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                                {task.customer.name || "회원 정보 없음"} ({task.customer.member_number || "-"})
+                              </span>
+                            )}
+
+                            {/* 날짜 */}
+                            <span className="text-sm text-gray-500 dark:text-gray-500 ml-auto">
+                              {formatDate(task.created_at)}
+                            </span>
                           </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                            {task.customer?.name || "회원 정보 없음"} ({task.customer?.member_number || "-"})
-                          </div>
+
+                          {/* 두 번째 줄: AI 요약 */}
                           {task.ai_summary && (
-                            <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-                              {task.ai_summary}
+                            <div>
+                              <p className="text-base text-gray-900 dark:text-gray-100 leading-relaxed">
+                                {task.ai_summary}
+                              </p>
                             </div>
                           )}
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-gray-900 dark:text-gray-50">
-                            {formatAmount(task.total_amount)}원
+
+                          {/* 세 번째 줄: 금액 및 처리 내역 */}
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="text-gray-600 dark:text-gray-400">
+                              <span className="text-gray-500 dark:text-gray-500">총액:</span>{" "}
+                              <span className="font-semibold text-green-600 dark:text-green-400">
+                                {formatAmount(task.total_amount)}원
+                              </span>
+                            </div>
+                            
+                            {task.task_items && task.task_items.length > 0 && (
+                              <div className="text-gray-600 dark:text-gray-400">
+                                <span className="text-gray-500 dark:text-gray-500">처리 항목:</span>{" "}
+                                <span className="font-medium">{task.task_items.length}개</span>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                            {formatDate(task.created_at)}
-                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               )}
