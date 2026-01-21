@@ -322,17 +322,47 @@ export default function IntakeClient() {
           user:users!tasks_user_id_fkey(name, username),
           assigned_to_user:users!tasks_assigned_to_fkey(name, username),
           items:task_items(*),
-          letters:letters(id, file_path, file_name, ocr_summary, ocr_image_type, created_at)
+          letters:letters!letters_task_id_fkey(id, file_path, file_name, ocr_summary, ocr_image_type, created_at)
         `)
         .eq("id", task.id)
         .single()
 
       if (error) throw error
 
+      console.log('✅ Task loaded:', {
+        taskId: taskWithLetters.id,
+        ticketNo: taskWithLetters.ticket_no,
+        lettersCount: taskWithLetters.letters?.length || 0,
+        letters: taskWithLetters.letters
+      })
+
       setSelectedTask(taskWithLetters as Task)
     } catch (error) {
-      console.error("Error loading task details:", error)
-      setSelectedTask(task)
+      console.error("❌ Error loading task details:", error)
+      
+      // Fallback: Try to load letters separately
+      try {
+        const { data: letters, error: lettersError } = await supabase
+          .from("letters")
+          .select("id, file_path, file_name, ocr_summary, ocr_image_type, created_at")
+          .eq("task_id", task.id)
+        
+        console.log('🔍 Fallback letters query:', {
+          taskId: task.id,
+          lettersFound: letters?.length || 0,
+          letters: letters,
+          error: lettersError
+        })
+        
+        if (!lettersError && letters) {
+          setSelectedTask({ ...task, letters: letters as any[] } as Task)
+        } else {
+          setSelectedTask(task)
+        }
+      } catch (fallbackError) {
+        console.error("❌ Fallback letters query failed:", fallbackError)
+        setSelectedTask(task)
+      }
     }
 
     setIsTaskDialogOpen(true)
