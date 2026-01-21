@@ -59,6 +59,7 @@ interface Letter {
   file_path: string
   file_url: string
   ocr_text: string | null
+  ocr_summary?: string | null
   status: string
   created_at: string
   ocr_confidence?: number
@@ -946,24 +947,27 @@ export default function MailroomClient() {
 
         console.log("[OCR] API 응답 상태:", ocrResponse.status)
         const ocrResult = await ocrResponse.json()
-        console.log("[OCR] API 응답:", ocrResult)
+        console.log("[OCR] API 응답 전체:", ocrResult)
 
-        if (ocrResult.success) {
+        if (ocrResult.success && ocrResult.data) {
+          const ocrData = ocrResult.data
+          
           console.log("[OCR] 추출 완료:", {
-            textLength: ocrResult.rawText?.length,
-            confidence: ocrResult.confidence,
-            imageType: ocrResult.imageType,
+            textLength: ocrData.rawText?.length,
+            confidence: ocrData.confidence,
+            imageType: ocrData.imageType,
+            rawText: ocrData.rawText?.substring(0, 100) + "..."
           })
 
           // Update letter with OCR results
           const { error: updateError } = await supabase
             .from("letters")
             .update({
-              ocr_text: ocrResult.rawText,
-              ocr_summary: ocrResult.summary || ocrResult.rawText?.substring(0, 200), // 요약 또는 앞 200자
-              ocr_confidence: ocrResult.confidence,
-              ocr_image_type: ocrResult.imageType,
-              ocr_prohibited_content: ocrResult.prohibitedContent,
+              ocr_text: ocrData.rawText || "",
+              ocr_summary: ocrData.rawText?.substring(0, 200) || "내용 없음", // 앞 200자
+              ocr_confidence: ocrData.confidence || 0,
+              ocr_image_type: ocrData.imageType || "unknown",
+              ocr_prohibited_content: ocrData.prohibitedContent?.found ? JSON.stringify(ocrData.prohibitedContent) : null,
             })
             .eq("id", letterData.id)
 
@@ -1053,13 +1057,24 @@ export default function MailroomClient() {
   }
 
   const getOcrSummary = (letter: Letter): string => {
-    if (!letter.ocr_text) return "OCR 처리 중..."
+    // ocr_summary 우선 사용
+    if (letter.ocr_summary && letter.ocr_summary.trim()) {
+      const maxLength = 100
+      const text = letter.ocr_summary.trim()
+      if (text === "내용 없음") return "📝 OCR 처리 중..."
+      if (text.length <= maxLength) return text
+      return text.substring(0, maxLength) + "..."
+    }
     
-    const maxLength = 100
-    const text = letter.ocr_text.trim()
-    if (text.length <= maxLength) return text
+    // ocr_text fallback
+    if (letter.ocr_text && letter.ocr_text.trim()) {
+      const maxLength = 100
+      const text = letter.ocr_text.trim()
+      if (text.length <= maxLength) return text
+      return text.substring(0, maxLength) + "..."
+    }
     
-    return text.substring(0, maxLength) + "..."
+    return "📝 OCR 처리 중..."
   }
 
   const getLetterTitle = (letter: Letter): string => {
