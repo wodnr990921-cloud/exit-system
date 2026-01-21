@@ -1358,8 +1358,8 @@ export default function MailroomClient() {
 
       {/* Assignment Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-7xl h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5" />
               편지 배정
@@ -1372,124 +1372,144 @@ export default function MailroomClient() {
           </DialogHeader>
 
           {selectedLetter && selectedLetters.length > 0 && (
-            <div className="grid grid-cols-2 gap-6 mt-4">
+            <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden px-6 py-4">
               {/* Left: Images */}
-              <div className="space-y-4">
+              <div className="flex flex-col space-y-3 h-full overflow-hidden">
                 {selectedLetters.length === 1 ? (
-                  <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden h-[600px]">
-                    <TransformWrapper
-                      ref={transformRef}
-                      initialScale={1}
-                      minScale={0.5}
-                      maxScale={5}
-                      centerOnInit
-                      wheel={{ step: 0.1 }}
-                    >
-                      <TransformComponent
-                        wrapperClass="w-full h-full"
-                        contentClass="w-full h-full flex items-center justify-center"
-                      >
-                        <img
-                          src={selectedLetters[0].file_url}
-                          alt="Letter"
-                          className="max-w-full max-h-full object-contain"
-                          style={{
-                            transform: `rotate(${rotation}deg)`,
-                            transition: "transform 0.3s ease",
-                          }}
-                        />
-                      </TransformComponent>
-                    </TransformWrapper>
-                  </div>
+                  <>
+                    <Card className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900">
+                      <CardContent className="p-2 h-full">
+                        <TransformWrapper
+                          ref={transformRef}
+                          initialScale={1}
+                          minScale={0.5}
+                          maxScale={5}
+                          centerOnInit
+                          wheel={{ step: 0.1 }}
+                        >
+                          <TransformComponent
+                            wrapperClass="w-full h-full"
+                            contentClass="w-full h-full flex items-center justify-center"
+                          >
+                            <img
+                              src={selectedLetters[0].file_url}
+                              alt="Letter"
+                              className="max-w-full max-h-full object-contain"
+                              style={{
+                                transform: `rotate(${rotation}deg)`,
+                                transition: "transform 0.3s ease",
+                              }}
+                            />
+                          </TransformComponent>
+                        </TransformWrapper>
+                      </CardContent>
+                    </Card>
+                  </>
                 ) : (
-                  <div className="space-y-3 h-[600px] overflow-y-auto p-2">
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                     {selectedLetters.map((letter, index) => (
-                      <div key={letter.id} className="relative">
-                        <Badge className="absolute top-2 left-2 z-10 bg-blue-600">
-                          편지 {index + 1}
-                        </Badge>
-                        <img
-                          src={letter.file_url}
-                          alt={`Letter ${index + 1}`}
-                          className="w-full max-h-[300px] object-contain rounded-lg border-2 border-gray-200 dark:border-gray-700"
-                        />
-                      </div>
+                      <Card key={letter.id} className="overflow-hidden">
+                        <CardContent className="p-3">
+                          <Badge className="mb-2 bg-blue-600">
+                            편지 {index + 1}
+                          </Badge>
+                          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-2">
+                            <img
+                              src={letter.file_url}
+                              alt={`Letter ${index + 1}`}
+                              className="w-full max-h-[180px] object-contain rounded"
+                            />
+                          </div>
+                          {letter.ocr_summary && (
+                            <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                              {letter.ocr_summary}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
 
-                {/* Image Controls */}
-                <div className="flex items-center justify-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => transformRef.current?.zoomIn()}
-                    className="text-gray-900 dark:text-gray-100"
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => transformRef.current?.zoomOut()}
-                    className="text-gray-900 dark:text-gray-100"
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRotation((prev) => (prev + 90) % 360)}
-                    className="text-gray-900 dark:text-gray-100"
-                  >
-                    <RotateCw className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => transformRef.current?.resetTransform()}
-                    className="text-gray-900 dark:text-gray-100"
-                  >
-                    <Move className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {/* OCR Result */}
-                {selectedLetters.some((l) => l.ocr_text) && (
-                  <Card>
-                    <CardContent className="p-4">
-                      <h4 className="font-bold mb-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
-                        <MessageSquare className="w-4 h-4" />
-                        OCR 추출 내용
-                        <Badge variant="secondary" className="ml-auto">
-                          {selectedLetters.length}개 편지
-                        </Badge>
-                      </h4>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 max-h-48 overflow-y-auto space-y-3">
-                        {selectedLetters.map((letter, index) => (
-                          letter.ocr_text && (
-                            <div key={letter.id} className="whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-3 rounded">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="text-xs">
-                                  편지 {index + 1}
-                                </Badge>
-                                {letter.ocr_confidence && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {letter.ocr_confidence}%
-                                  </Badge>
-                                )}
-                              </div>
-                              {letter.ocr_text}
-                            </div>
-                          )
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                {/* Image Controls - Only for single letter */}
+                {selectedLetters.length === 1 && (
+                  <div className="flex items-center justify-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => transformRef.current?.zoomIn()}
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => transformRef.current?.zoomOut()}
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRotation((prev) => (prev + 90) % 360)}
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => transformRef.current?.resetTransform()}
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <Move className="w-4 h-4" />
+                    </Button>
+                  </div>
                 )}
+              </div>
 
-                {/* Prohibited Content Warning */}
-                {selectedLetters.some((l) => l.ocr_prohibited_content?.found) && (
+              {/* Right: Form */}
+              <div className="flex flex-col h-full overflow-hidden">
+                <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                  {/* OCR Result */}
+                  {selectedLetters.some((l) => l.ocr_text) && (
+                    <Card>
+                      <CardContent className="p-4">
+                        <h4 className="font-bold mb-3 flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md">
+                          <MessageSquare className="w-4 h-4" />
+                          OCR 추출 내용
+                          <Badge variant="secondary" className="ml-auto">
+                            {selectedLetters.length}개 편지
+                          </Badge>
+                        </h4>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 max-h-32 overflow-y-auto space-y-2">
+                          {selectedLetters.map((letter, index) => (
+                            letter.ocr_text && (
+                              <div key={letter.id} className="whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 p-2 rounded text-xs">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    편지 {index + 1}
+                                  </Badge>
+                                  {letter.ocr_confidence && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {letter.ocr_confidence}%
+                                    </Badge>
+                                  )}
+                                </div>
+                                {letter.ocr_text.substring(0, 200)}
+                                {letter.ocr_text.length > 200 && "..."}
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Prohibited Content Warning */}
+                  {selectedLetters.some((l) => l.ocr_prohibited_content?.found) && (
                   <Card className="border-red-200 bg-red-50 dark:bg-red-900/20">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-2">
@@ -1521,12 +1541,8 @@ export default function MailroomClient() {
                     </CardContent>
                   </Card>
                 )}
-              </div>
-
-              {/* Right: Assignment Form */}
-              <div className="space-y-4">
-                {/* Customer Search */}
-                <div className="space-y-2">
+                  {/* Customer Search */}
+                  <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-bold flex items-center gap-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
                       <User className="w-4 h-4" />
@@ -1919,50 +1935,53 @@ export default function MailroomClient() {
                   </Card>
                 )}
 
-                {/* Reply Section */}
-                <Card className="border-2 border-green-200 dark:border-green-800">
-                  <CardContent className="p-4">
-                    <Label className="text-sm font-bold flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md mb-3">
-                      <MessageSquare className="w-4 h-4" />
-                      답변 작성
-                      <Badge variant="outline" className="ml-auto">
-                        선택사항
-                      </Badge>
-                    </Label>
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="회원에게 보낼 답변을 작성하세요... (선택사항)"
-                      className="w-full h-32 p-3 text-sm border rounded-md resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                    <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                      <span>💡 팁: 답변은 일괄 출력하여 편지와 함께 발송할 수 있습니다</span>
-                      <span>{replyText.length}자</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                  {/* Reply Section */}
+                  <Card className="border-2 border-green-200 dark:border-green-800">
+                    <CardContent className="p-4">
+                      <Label className="text-sm font-bold flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-md mb-3">
+                        <MessageSquare className="w-4 h-4" />
+                        답변 작성
+                        <Badge variant="outline" className="ml-auto">
+                          선택사항
+                        </Badge>
+                      </Label>
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="회원에게 보낼 답변을 작성하세요... (선택사항)"
+                        className="w-full h-24 p-3 text-sm border rounded-md resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                        <span>💡 답변은 일괄 출력 가능</span>
+                        <span>{replyText.length}자</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-                {/* Submit Button */}
-                <Button
-                  onClick={handleSaveAndNext}
-                  disabled={processing || !selectedCustomer || !selectedStaff}
-                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-gray-900 dark:text-gray-900"
-                  size="lg"
-                >
-                  {processing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      처리 중...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 mr-2" />
-                      배정 완료
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                      <span className="ml-2 text-xs opacity-75">(Ctrl+Enter)</span>
-                    </>
-                  )}
-                </Button>
+                {/* Submit Button - Fixed at bottom */}
+                <div className="flex-shrink-0 pt-4 border-t bg-white dark:bg-gray-950">
+                  <Button
+                    onClick={handleSaveAndNext}
+                    disabled={processing || !selectedCustomer || !selectedStaff}
+                    className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                    size="lg"
+                  >
+                    {processing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        처리 중...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 mr-2" />
+                        배정 완료
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                        <span className="ml-2 text-xs opacity-75">(Ctrl+Enter)</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
