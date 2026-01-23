@@ -1388,40 +1388,53 @@ export default function IntakeClient() {
                   </div>
                 )}
 
-                {/* 저장된 답변 목록 */}
+                {/* 저장된 답변 목록 (댓글 형식) */}
                 {savedReplies.length > 0 && (
                   <div className="space-y-3 pt-4 border-t">
-                    <div className="flex items-center justify-between">
-                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
-                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                          💬 저장된 답변 ({savedReplies.length}개)
-                        </Label>
-                      </div>
+                    <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                        💬 저장된 답변 ({savedReplies.length}개)
+                      </Label>
                     </div>
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {savedReplies.map((reply) => (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                      {savedReplies.map((reply, index) => (
                         <div 
                           key={reply.id}
-                          className="p-4 bg-blue-50 dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-800 rounded-lg"
+                          className="flex gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                              ✅ 답변 {savedReplies.indexOf(reply) + 1}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(reply.created_at).toLocaleString("ko-KR")}
-                            </span>
+                          {/* 아바타/아이콘 */}
+                          <div className="flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                              ✍️
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                            {reply.description}
-                          </div>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold">
-                              {reply.status === "approved" ? "✅ 승인됨" : reply.status}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                          
+                          {/* 답변 내용 */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                답변 #{index + 1}
+                              </span>
+                              {reply.status === "approved" && (
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold">
+                                  ✅ 승인
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
+                                {new Date(reply.created_at).toLocaleString("ko-KR", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                              {reply.description}
+                            </p>
+                            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                               {reply.description.length}자
-                            </span>
+                            </div>
                           </div>
                         </div>
                       ))}
