@@ -1376,7 +1376,7 @@ export default function IntakeClient() {
                         // Refresh task data
                         await loadAllTasks()
                         if (selectedTask) {
-                          await handleTaskClick(selectedTask.id)
+                          await handleTaskClick(selectedTask)
                         }
                       } catch (error: any) {
                         console.error("Save reply error:", error)
