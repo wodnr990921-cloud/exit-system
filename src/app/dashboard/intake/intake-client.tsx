@@ -1168,45 +1168,55 @@ export default function IntakeClient() {
               <div className="space-y-4 py-4">
                 {/* 좌우 분할 레이아웃 */}
                 <div className="grid grid-cols-2 gap-6">
-                  {/* 좌측: 편지 사진 */}
-                  <div className="space-y-3">
-                    <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
-                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📷 편지 사진</Label>
-                    </div>
-                    {selectedTask.letters && selectedTask.letters.length > 0 ? (
-                      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                        {selectedTask.letters.map((letter) => {
-                          const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/letters/${letter.file_path}`
-                          return (
-                            <div key={letter.id} className="relative group border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-400 transition-colors">
-                              <img
-                                src={imageUrl}
-                                alt={letter.file_name}
-                                className="w-full max-h-[200px] object-contain bg-gray-50 dark:bg-gray-900 cursor-pointer"
-                                onClick={() => setSelectedImage(imageUrl)}
-                              />
-                              <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                <ZoomIn className="w-3 h-3" />
-                                확대
-                              </div>
-                              {letter.ocr_summary && (
-                                <div className="p-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{letter.ocr_summary}</p>
+                  {/* 좌측: 편지 사진 + 전체 내용 */}
+                  <div className="space-y-4">
+                    {/* 편지 사진 */}
+                    <div className="space-y-2">
+                      <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📷 편지 사진</Label>
+                      </div>
+                      {selectedTask.letters && selectedTask.letters.length > 0 ? (
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                          {selectedTask.letters.map((letter) => {
+                            const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/letters/${letter.file_path}`
+                            return (
+                              <div key={letter.id} className="relative group border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-400 transition-colors">
+                                <img
+                                  src={imageUrl}
+                                  alt={letter.file_name}
+                                  className="w-full max-h-[150px] object-contain bg-gray-50 dark:bg-gray-900 cursor-pointer"
+                                  onClick={() => setSelectedImage(imageUrl)}
+                                />
+                                <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                  <ZoomIn className="w-3 h-3" />
+                                  확대
                                 </div>
-                              )}
-                            </div>
-                          )
-                        })}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[150px] border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+                          <ImageIcon className="w-12 h-12 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">편지 사진이 없습니다</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 전체 내용 (글자 제한 없음) */}
+                    <div className="space-y-2">
+                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📄 전체 내용</Label>
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-[200px] border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                        <ImageIcon className="w-12 h-12 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400">편지 사진이 없습니다</p>
+                      <div className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg max-h-[400px] overflow-y-auto">
+                        <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
+                          {selectedTask.description || "내용이 없습니다."}
+                        </p>
                       </div>
-                    )}
+                    </div>
                   </div>
 
-                  {/* 우측: 티켓 정보 */}
+                  {/* 우측: 요약 정보 */}
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1337,13 +1347,46 @@ export default function IntakeClient() {
                       <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-50">{selectedTask.title}</p>
                     </div>
 
-                    <div>
-                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
-                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 내용</Label>
+                    {/* 요약 정보 */}
+                    <div className="space-y-3 p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-2 border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="inline-block px-3 py-1 bg-white dark:bg-gray-800 rounded-md shadow-sm">
+                        <Label className="text-sm font-bold text-blue-900 dark:text-blue-100">📊 요약 정보</Label>
                       </div>
-                      <p className="mt-1 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-h-[150px] overflow-y-auto">
-                        {selectedTask.description || "-"}
-                      </p>
+                      
+                      {/* 카테고리 */}
+                      {selectedTask.category && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">🏷️ 카테고리:</span>
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100">
+                            {selectedTask.category}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* 요약/요청사항 */}
+                      <div>
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-2">💬 요청사항:</span>
+                        <p className="text-sm text-gray-800 dark:text-gray-200 p-3 bg-white/70 dark:bg-gray-800/70 rounded-lg border border-blue-100 dark:border-blue-900 leading-relaxed">
+                          {selectedTask.summary || selectedTask.description?.substring(0, 200) || "요약 정보가 없습니다."}
+                          {selectedTask.description && selectedTask.description.length > 200 && "..."}
+                        </p>
+                      </div>
+                      
+                      {/* OCR 정보 */}
+                      {selectedTask.letters && selectedTask.letters.some(l => l.ocr_summary) && (
+                        <div>
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-2">🔍 OCR 인식:</span>
+                          <div className="space-y-1">
+                            {selectedTask.letters
+                              .filter(l => l.ocr_summary)
+                              .map((letter, idx) => (
+                                <p key={letter.id} className="text-xs text-gray-600 dark:text-gray-400 p-2 bg-white/50 dark:bg-gray-800/50 rounded border border-gray-200 dark:border-gray-700">
+                                  • {letter.ocr_summary}
+                                </p>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1528,16 +1571,12 @@ export default function IntakeClient() {
                         console.log("🎉 [답변 저장] 성공 메시지 표시됨")
                         console.log("💾 저장된 답변:", savedText)
 
-                        // Refresh task data
-                        console.log("🔄 데이터 새로고침 중...")
-                        
-                        // Refresh saved replies immediately
+                        // Refresh saved replies immediately without full page reload
+                        console.log("🔄 답변 목록 새로고침 중...")
                         if (selectedTask) {
                           await loadSavedReplies(selectedTask.id)
                         }
-                        
-                        await loadAllTasks()
-                        console.log("✅ 모든 처리 완료!")
+                        console.log("✅ 답변 저장 및 새로고침 완료!")
                       } catch (error: any) {
                         console.error("❌ [답변 저장] 실패:", error)
                         toast({
