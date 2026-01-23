@@ -122,6 +122,7 @@ export default function IntakeClient() {
 
   // 이미지 확대 state
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [imageZoom, setImageZoom] = useState(1)
 
   // 신규 회원 등록 state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
@@ -506,6 +507,164 @@ export default function IntakeClient() {
     }
   }
 
+  // 답변 일괄 출력
+  const handlePrintReplies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("task_items")
+        .select(`
+          id,
+          description,
+          created_at,
+          task:tasks!inner(
+            ticket_no,
+            customer:customers(name, member_number, address)
+          )
+        `)
+        .eq("category", "inquiry")
+        .order("created_at", { ascending: false })
+        .limit(100)
+
+      if (error) throw error
+
+      if (!data || data.length === 0) {
+        toast({
+          title: "알림",
+          description: "출력할 답변이 없습니다.",
+        })
+        return
+      }
+
+      const printWindow = window.open("", "_blank")
+      if (!printWindow) {
+        toast({
+          title: "오류",
+          description: "팝업이 차단되었습니다. 팝업 차단을 해제해주세요.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>답변 일괄 출력</title>
+  <style>
+    @media print {
+      @page { margin: 2cm; }
+      .page-break { page-break-after: always; }
+    }
+    body {
+      font-family: 'Malgun Gothic', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #333;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin: 0 0 10px 0;
+    }
+    .reply-item {
+      margin-bottom: 40px;
+      padding: 20px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .recipient-address {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: #fff;
+      border-left: 4px solid #4CAF50;
+    }
+    .reply-header {
+      display: flex;
+      justify-between;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .ticket-info {
+      font-weight: bold;
+      color: #333;
+    }
+    .customer-info {
+      color: #666;
+      font-size: 14px;
+    }
+    .date {
+      color: #999;
+      font-size: 12px;
+    }
+    .reply-content {
+      line-height: 1.8;
+      font-size: 14px;
+      white-space: pre-wrap;
+      padding: 15px;
+      background: white;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📮 회원 답변 일괄 출력</h1>
+    <p>출력 일시: ${new Date().toLocaleString("ko-KR")}</p>
+    <p>총 ${data.length}건</p>
+  </div>
+  ${data
+    .map(
+      (item: any, index: number) => `
+    <div class="reply-item ${index < data.length - 1 ? "page-break" : ""}">
+      <div class="recipient-address">
+        ${item.task?.customer?.address || "주소 없음"} ${item.task?.customer?.name || "미등록"}
+      </div>
+      <div class="reply-header">
+        <div>
+          <div class="ticket-info">티켓 #${item.task?.ticket_no || "N/A"}</div>
+          <div class="customer-info">${item.task?.customer?.name || "미등록"} (${item.task?.customer?.member_number || "-"})</div>
+        </div>
+        <div class="date">${new Date(item.created_at).toLocaleString("ko-KR")}</div>
+      </div>
+      <div class="reply-content">${item.description || ""}</div>
+    </div>
+  `
+    )
+    .join("")}
+</body>
+</html>
+      `
+
+      printWindow.document.write(html)
+      printWindow.document.close()
+      setTimeout(() => {
+        printWindow.print()
+      }, 250)
+
+      toast({
+        title: "출력 준비 완료",
+        description: `${data.length}건의 답변이 출력 대기 중입니다.`,
+      })
+    } catch (error: any) {
+      console.error("Print error:", error)
+      toast({
+        variant: "destructive",
+        title: "출력 오류",
+        description: error.message || "답변 출력 중 오류가 발생했습니다.",
+      })
+    }
+  }
+
   // 일괄 삭제
   const handleBatchDelete = async () => {
     if (selectedTaskIds.length === 0) return
@@ -689,9 +848,18 @@ export default function IntakeClient() {
         {/* 헤더 및 네비게이션 */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">티켓 목록</h1>
-          <Button onClick={() => router.push("/dashboard/reception")} className="bg-blue-600 hover:bg-blue-700">
-            + 신규 티켓 작성
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handlePrintReplies} 
+              variant="outline"
+              className="bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 border-green-500 text-green-700 dark:text-green-400"
+            >
+              📮 답변 일괄 출력
+            </Button>
+            <Button onClick={() => router.push("/dashboard/reception")} className="bg-blue-600 hover:bg-blue-700">
+              + 신규 티켓 작성
+            </Button>
+          </div>
         </div>
 
         {/* 검색 */}
@@ -1202,7 +1370,7 @@ export default function IntakeClient() {
                         setTaskReplyText("")
                         toast({
                           title: "✅ 답변 저장 완료",
-                          description: "답변이 티켓에 저장되고 상태가 업데이트되었습니다.",
+                          description: "답변이 저장되었습니다. 상단의 '답변 일괄 출력' 버튼으로 인쇄할 수 있습니다.",
                         })
 
                         // Refresh task data
@@ -1345,22 +1513,83 @@ export default function IntakeClient() {
         </Dialog>
 
         {/* 이미지 확대 Dialog */}
-        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <Dialog 
+          open={!!selectedImage} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedImage(null)
+              setImageZoom(1)
+            }
+          }}
+        >
           <DialogContent className="max-w-7xl max-h-[95vh]">
             <DialogHeader>
-              <DialogTitle>편지 사진 확대</DialogTitle>
+              <DialogTitle className="flex items-center justify-between">
+                <span>편지 사진 확대</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setImageZoom(Math.max(0.5, imageZoom - 0.25))}
+                    disabled={imageZoom <= 0.5}
+                    className="text-gray-900 dark:text-gray-100"
+                  >
+                    ➖ 축소
+                  </Button>
+                  <span className="text-sm font-normal text-gray-600 dark:text-gray-400 min-w-[60px] text-center">
+                    {Math.round(imageZoom * 100)}%
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setImageZoom(Math.min(3, imageZoom + 0.25))}
+                    disabled={imageZoom >= 3}
+                    className="text-gray-900 dark:text-gray-100"
+                  >
+                    ➕ 확대
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setImageZoom(1)}
+                    className="text-gray-900 dark:text-gray-100"
+                  >
+                    🔄 원본
+                  </Button>
+                </div>
+              </DialogTitle>
             </DialogHeader>
-            <div className="flex items-center justify-center max-h-[80vh] overflow-auto">
+            <div 
+              className="flex items-center justify-center max-h-[80vh] overflow-auto"
+              onWheel={(e) => {
+                if (e.ctrlKey) {
+                  e.preventDefault()
+                  const delta = e.deltaY > 0 ? -0.1 : 0.1
+                  setImageZoom(Math.max(0.5, Math.min(3, imageZoom + delta)))
+                }
+              }}
+            >
               {selectedImage && (
                 <img
                   src={selectedImage}
                   alt="편지 확대"
-                  className="max-w-full max-h-full object-contain"
+                  className="max-w-full max-h-full object-contain transition-transform cursor-move"
+                  style={{ transform: `scale(${imageZoom})` }}
                 />
               )}
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedImage(null)} className="text-gray-900 dark:text-gray-100 font-medium">
+            <DialogFooter className="flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                💡 Ctrl + 마우스 휠로도 확대/축소 가능
+              </span>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedImage(null)
+                  setImageZoom(1)
+                }} 
+                className="text-gray-900 dark:text-gray-100 font-medium"
+              >
                 닫기
               </Button>
             </DialogFooter>
