@@ -120,6 +120,8 @@ export default function IntakeClient() {
   // 답변 작성 관련 state
   const [taskReplyText, setTaskReplyText] = useState("")
   const [savingReply, setSavingReply] = useState(false)
+  const [savedReplies, setSavedReplies] = useState<any[]>([])
+  const [loadingReplies, setLoadingReplies] = useState(false)
 
   // 이미지 확대 state
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -369,6 +371,7 @@ export default function IntakeClient() {
 
     setIsTaskDialogOpen(true)
     await loadTaskComments(task.id)
+    await loadSavedReplies(task.id)
   }
 
   const loadTaskComments = async (taskId: string) => {
@@ -391,6 +394,28 @@ export default function IntakeClient() {
       console.error("Error loading comments:", error)
     } finally {
       setLoadingComments(false)
+    }
+  }
+
+  const loadSavedReplies = async (taskId: string) => {
+    setLoadingReplies(true)
+    try {
+      console.log("📋 저장된 답변 로딩 중...", taskId)
+      const { data, error } = await supabase
+        .from("task_items")
+        .select("*")
+        .eq("task_id", taskId)
+        .eq("category", "inquiry")
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+      console.log("✅ 저장된 답변:", data?.length || 0, "개")
+      setSavedReplies(data || [])
+    } catch (error: any) {
+      console.error("❌ 답변 로딩 오류:", error)
+      setSavedReplies([])
+    } finally {
+      setLoadingReplies(false)
     }
   }
 
@@ -1363,6 +1388,47 @@ export default function IntakeClient() {
                   </div>
                 )}
 
+                {/* 저장된 답변 목록 */}
+                {savedReplies.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                          💬 저장된 답변 ({savedReplies.length}개)
+                        </Label>
+                      </div>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {savedReplies.map((reply) => (
+                        <div 
+                          key={reply.id}
+                          className="p-4 bg-blue-50 dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-800 rounded-lg"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                              ✅ 답변 {savedReplies.indexOf(reply) + 1}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(reply.created_at).toLocaleString("ko-KR")}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                            {reply.description}
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold">
+                              {reply.status === "approved" ? "✅ 승인됨" : reply.status}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {reply.description.length}자
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* 답변 작성 (task_items에 저장) */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
@@ -1439,17 +1505,25 @@ export default function IntakeClient() {
                         const savedText = taskReplyText.trim()
                         setTaskReplyText("")
                         
+                        // Show prominent success message
                         toast({
                           title: "✅ 답변 저장 완료!",
-                          description: `답변(${savedText.length}자)이 성공적으로 저장되었습니다.\n상단의 '📮 답변 일괄 출력' 버튼으로 인쇄할 수 있습니다.`,
+                          description: `${savedText.length}자 답변이 성공적으로 저장되었습니다. 위쪽에서 확인하세요.`,
                         })
+                        
+                        // Also log to console for visibility
+                        console.log("🎉 [답변 저장] 성공 메시지 표시됨")
+                        console.log("💾 저장된 답변:", savedText)
 
                         // Refresh task data
                         console.log("🔄 데이터 새로고침 중...")
-                        await loadAllTasks()
+                        
+                        // Refresh saved replies immediately
                         if (selectedTask) {
-                          await handleTaskClick(selectedTask)
+                          await loadSavedReplies(selectedTask.id)
                         }
+                        
+                        await loadAllTasks()
                         console.log("✅ 모든 처리 완료!")
                       } catch (error: any) {
                         console.error("❌ [답변 저장] 실패:", error)
