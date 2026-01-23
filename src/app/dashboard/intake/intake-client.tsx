@@ -1435,12 +1435,6 @@ export default function IntakeClient() {
                           }
                         }
 
-                        if (updateError) {
-                          console.warn("⚠️ 티켓 상태 업데이트 실패:", updateError)
-                        } else {
-                          console.log("✅ 티켓 상태 업데이트 성공")
-                        }
-
                         // Clear input and show success
                         const savedText = taskReplyText.trim()
                         setTaskReplyText("")
