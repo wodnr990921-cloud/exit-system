@@ -673,14 +673,17 @@ export default function IntakeClient() {
 
       printWindow.document.write(html)
       printWindow.document.close()
+      
+      // Automatically trigger print dialog (user can choose PDF save)
       setTimeout(() => {
         printWindow.print()
+        
+        // Show helpful message
+        toast({
+          title: "📄 출력 준비 완료",
+          description: `${data.length}건의 답변이 출력 대기 중입니다.\n💡 인쇄 대화상자에서 "PDF로 저장"을 선택할 수 있습니다.`,
+        })
       }, 250)
-
-      toast({
-        title: "출력 준비 완료",
-        description: `${data.length}건의 답변이 출력 대기 중입니다.`,
-      })
     } catch (error: any) {
       console.error("Print error:", error)
       toast({

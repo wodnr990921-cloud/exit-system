@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircle, CheckCircle2, Save, Settings, Lock, FileText, Users, Key } from "lucide-react"
+import { AlertCircle, CheckCircle2, Save, Settings, Lock, FileText, Users, Key, Archive } from "lucide-react"
 import dynamicImport from "next/dynamic"
 
 const AuditLogsContent = dynamicImport(() => import("../audit-logs/audit-logs-client"), {
@@ -25,6 +25,11 @@ const EmployeeManagementContent = dynamicImport(() => import("./employee-managem
 
 const PasswordChangeContent = dynamicImport(() => import("./password-change-client"), {
   loading: () => <div className="p-6">비밀번호 변경 로딩 중...</div>,
+  ssr: false,
+})
+
+const ReplyArchiveContent = dynamicImport(() => import("./reply-archive-client"), {
+  loading: () => <div className="p-6">답변 보관함 로딩 중...</div>,
   ssr: false,
 })
 
@@ -187,7 +192,7 @@ export default function SettingsPage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="config" className="gap-2">
             <Settings className="h-4 w-4" />
             <span>시스템 변수</span>
@@ -195,6 +200,10 @@ export default function SettingsPage() {
           <TabsTrigger value="password" className="gap-2">
             <Key className="h-4 w-4" />
             <span>비밀번호 변경</span>
+          </TabsTrigger>
+          <TabsTrigger value="archive" className="gap-2">
+            <Archive className="h-4 w-4" />
+            <span>답변 보관함</span>
           </TabsTrigger>
           <TabsTrigger value="audit" className="gap-2">
             <FileText className="h-4 w-4" />
@@ -280,6 +289,12 @@ export default function SettingsPage() {
         <TabsContent value="password" className="space-y-6">
           <Card>
             <PasswordChangeContent />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="archive" className="space-y-6">
+          <Card>
+            <ReplyArchiveContent />
           </Card>
         </TabsContent>
 
