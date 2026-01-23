@@ -813,26 +813,28 @@ export default function IntakeClient() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      draft: "대기",
-      assigned: "접수",
-      in_progress: "처리중",
-      completed: "완료",
-      pending_review: "검토중",
-      closed: "마감",
+      pending: "⏳ 대기중",
+      draft: "📝 작성중",
+      assigned: "📋 접수완료",
+      in_progress: "⚙️ 처리중",
+      completed: "✅ 완료",
+      pending_review: "🔍 검토중",
+      closed: "🔒 마감",
     }
-    return labels[status] || status
+    return labels[status] || `❓ ${status}`
   }
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      draft: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-      assigned: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-      in_progress: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-      completed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-      pending_review: "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
-      closed: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+      pending: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-2 border-gray-300 dark:border-gray-600",
+      draft: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-2 border-slate-300 dark:border-slate-600",
+      assigned: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-400 dark:border-blue-600",
+      in_progress: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100 border-2 border-amber-400 dark:border-amber-600 animate-pulse",
+      completed: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100 border-2 border-emerald-400 dark:border-emerald-600",
+      pending_review: "bg-purple-100 text-purple-900 dark:bg-purple-900 dark:text-purple-100 border-2 border-purple-400 dark:border-purple-600",
+      closed: "bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100 border-2 border-red-400 dark:border-red-600",
     }
-    return colors[status] || "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+    return colors[status] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-2 border-gray-300"
   }
 
   if (loading) {
@@ -949,14 +951,23 @@ export default function IntakeClient() {
                   const isSelected = selectedTaskIds.includes(task.id)
                   const showCheckbox = currentUser && (currentUser.role === "ceo" || currentUser.role === "admin")
                   
+                  // 상태별 카드 테두리 색상
+                  const getCardBorderColor = (status: string) => {
+                    if (isSelected) return "border-blue-500 ring-4 ring-blue-200 dark:ring-blue-800"
+                    
+                    const borderColors: Record<string, string> = {
+                      pending: "border-gray-300 dark:border-gray-700 hover:border-gray-400",
+                      in_progress: "border-amber-300 dark:border-amber-700 hover:border-amber-400 shadow-amber-100",
+                      completed: "border-emerald-300 dark:border-emerald-700 hover:border-emerald-400",
+                      closed: "border-red-300 dark:border-red-700 hover:border-red-400",
+                    }
+                    return borderColors[status] || "border-gray-200 dark:border-gray-800 hover:border-blue-400"
+                  }
+                  
                   return (
                     <Card
                       key={task.id}
-                      className={`cursor-pointer hover:shadow-lg transition-all border-2 bg-white dark:bg-gray-900 ${
-                        isSelected 
-                          ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700" 
-                          : "border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600"
-                      }`}
+                      className={`cursor-pointer hover:shadow-xl transition-all duration-200 border-3 bg-white dark:bg-gray-900 ${getCardBorderColor(task.status)}`}
                       onClick={() => handleTaskClick(task)}
                     >
                       <CardContent className="p-6">
@@ -1099,8 +1110,33 @@ export default function IntakeClient() {
         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold">티켓 상세 정보</DialogTitle>
-              <DialogDescription>티켓의 상세 정보와 댓글을 확인할 수 있습니다.</DialogDescription>
+              <div className="flex items-center justify-between mb-2">
+                <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-gray-50">
+                  🎫 티켓 상세 정보
+                </DialogTitle>
+                {selectedTask && (
+                  <div className="flex items-center gap-2">
+                    <span className={`px-4 py-2 rounded-lg text-sm font-bold ${getStatusColor(selectedTask.status)}`}>
+                      {getStatusLabel(selectedTask.status)}
+                    </span>
+                    <span className="px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-mono font-bold text-gray-900 dark:text-gray-100">
+                      #{selectedTask.ticket_no || selectedTask.id.slice(0, 8)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <DialogDescription className="text-base">
+                {selectedTask?.customer?.name && (
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    👤 {selectedTask.customer.name}
+                  </span>
+                )}
+                {selectedTask?.customer?.member_number && (
+                  <span className="text-gray-600 dark:text-gray-400 ml-2">
+                    ({selectedTask.customer.member_number})
+                  </span>
+                )}
+              </DialogDescription>
             </DialogHeader>
 
             {selectedTask && (
@@ -1367,15 +1403,37 @@ export default function IntakeClient() {
 
                         console.log("✅ task_items 저장 성공:", insertData)
 
-                        // Update task status to in_progress
+                        // Update task status to in_progress (only if pending)
                         console.log("🔄 티켓 상태 업데이트 중...")
-                        const { error: updateError } = await supabase
-                          .from("tasks")
-                          .update({ 
-                            status: "in_progress",
-                            updated_at: new Date().toISOString()
-                          })
-                          .eq("id", selectedTask.id)
+                        console.log("📊 현재 티켓 상태:", selectedTask.status)
+                        
+                        let shouldUpdateStatus = false
+                        let newStatus = selectedTask.status
+                        
+                        // Only change status if currently pending
+                        if (selectedTask.status === "pending") {
+                          shouldUpdateStatus = true
+                          newStatus = "in_progress"
+                          console.log("✅ 상태 변경: pending → in_progress")
+                        } else {
+                          console.log("ℹ️ 상태 유지:", selectedTask.status)
+                        }
+                        
+                        if (shouldUpdateStatus) {
+                          const { error: updateError } = await supabase
+                            .from("tasks")
+                            .update({ 
+                              status: newStatus,
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq("id", selectedTask.id)
+
+                          if (updateError) {
+                            console.warn("⚠️ 티켓 상태 업데이트 실패:", updateError)
+                          } else {
+                            console.log("✅ 티켓 상태 업데이트 성공")
+                          }
+                        }
 
                         if (updateError) {
                           console.warn("⚠️ 티켓 상태 업데이트 실패:", updateError)
