@@ -668,25 +668,57 @@ export default function MailroomClient() {
   }
 
   const handleSaveAndNext = async () => {
+    console.log("🔘 [배정 완료] 버튼 클릭됨")
+    console.log("📋 현재 상태:", {
+      selectedLettersCount: selectedLetters.length,
+      hasCustomer: !!selectedCustomer,
+      hasStaff: !!selectedStaff,
+      replyTextLength: replyText.length,
+      activeTab,
+      processing
+    })
+    
     // 검증: 편지, 회원, 담당자 선택 확인
     if (selectedLetters.length === 0) {
-      setError("배정할 편지를 선택해주세요.")
+      const msg = "배정할 편지를 선택해주세요."
+      console.error("❌ 검증 실패:", msg)
+      setError(msg)
+      toast({
+        title: "오류",
+        description: msg,
+        variant: "destructive",
+      })
       return
     }
     
     if (!selectedCustomer) {
-      setError("회원을 선택해주세요.")
+      const msg = "회원을 선택해주세요."
+      console.error("❌ 검증 실패:", msg)
+      setError(msg)
+      toast({
+        title: "오류",
+        description: msg,
+        variant: "destructive",
+      })
       return
     }
     
     if (!selectedStaff) {
-      setError("담당자를 선택해주세요.")
+      const msg = "담당자를 선택해주세요."
+      console.error("❌ 검증 실패:", msg)
+      setError(msg)
+      toast({
+        title: "오류",
+        description: msg,
+        variant: "destructive",
+      })
       return
     }
 
     console.log(`🎯 [우편실] 배정 시작 - ${selectedLetters.length}개 편지`)
     console.log(`👤 선택된 회원:`, selectedCustomer)
     console.log(`👨‍💼 선택된 담당자:`, selectedStaff)
+    console.log(`💬 답변 내용:`, replyText ? `${replyText.substring(0, 50)}...` : "(없음)")
     setProcessing(true)
 
     try {
@@ -926,7 +958,8 @@ export default function MailroomClient() {
         code: error.code,
         message: error.message,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
+        stack: error.stack
       })
       
       // 사용자 친화적인 오류 메시지
@@ -936,6 +969,8 @@ export default function MailroomClient() {
         userMessage = `필수 정보가 누락되었습니다: ${column || "알 수 없음"}`
       } else if (error.code === "42702") {
         userMessage = "데이터베이스 설정 오류입니다. 관리자에게 문의하세요."
+      } else if (error.code === "23514") {
+        userMessage = "잘못된 데이터 형식입니다. (Check constraint 위반)"
       } else if (error.message) {
         userMessage = error.message
       }
@@ -943,11 +978,12 @@ export default function MailroomClient() {
       setError(userMessage)
       
       toast({
-        title: "배정 실패",
-        description: userMessage,
+        title: "❌ 배정 실패",
+        description: `${userMessage}\n\nF12 콘솔에서 상세 정보를 확인하세요.`,
         variant: "destructive",
       })
     } finally {
+      console.log("🏁 처리 종료, processing 상태 해제")
       setProcessing(false)
     }
   }
