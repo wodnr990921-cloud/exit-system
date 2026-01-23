@@ -119,6 +119,7 @@ export default function IntakeClient() {
 
   // 답변 작성 관련 state
   const [taskReplyText, setTaskReplyText] = useState("")
+  const [savingReply, setSavingReply] = useState(false)
 
   // 이미지 확대 state
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -1340,21 +1341,34 @@ export default function IntakeClient() {
                   />
                   <Button
                     onClick={async () => {
-                      if (!selectedTask || !taskReplyText.trim()) return
+                      if (!selectedTask || !taskReplyText.trim() || savingReply) return
 
+                      console.log("💾 [답변 저장] 시작:", {
+                        taskId: selectedTask.id,
+                        replyLength: taskReplyText.trim().length
+                      })
+
+                      setSavingReply(true)
                       try {
                         // Insert reply as task_item
-                        const { error } = await supabase.from("task_items").insert({
+                        console.log("📝 task_items에 답변 저장 중...")
+                        const { data: insertData, error } = await supabase.from("task_items").insert({
                           task_id: selectedTask.id,
                           category: "inquiry",
                           description: taskReplyText.trim(),
                           amount: 0,
                           status: "approved",
-                        })
+                        }).select()
 
-                        if (error) throw error
+                        if (error) {
+                          console.error("❌ task_items 저장 실패:", error)
+                          throw error
+                        }
+
+                        console.log("✅ task_items 저장 성공:", insertData)
 
                         // Update task status to in_progress
+                        console.log("🔄 티켓 상태 업데이트 중...")
                         const { error: updateError } = await supabase
                           .from("tasks")
                           .update({ 
@@ -1364,34 +1378,43 @@ export default function IntakeClient() {
                           .eq("id", selectedTask.id)
 
                         if (updateError) {
-                          console.warn("Failed to update task status:", updateError)
+                          console.warn("⚠️ 티켓 상태 업데이트 실패:", updateError)
+                        } else {
+                          console.log("✅ 티켓 상태 업데이트 성공")
                         }
 
+                        // Clear input and show success
+                        const savedText = taskReplyText.trim()
                         setTaskReplyText("")
+                        
                         toast({
-                          title: "✅ 답변 저장 완료",
-                          description: "답변이 저장되었습니다. 상단의 '답변 일괄 출력' 버튼으로 인쇄할 수 있습니다.",
+                          title: "✅ 답변 저장 완료!",
+                          description: `답변(${savedText.length}자)이 성공적으로 저장되었습니다.\n상단의 '📮 답변 일괄 출력' 버튼으로 인쇄할 수 있습니다.`,
                         })
 
                         // Refresh task data
+                        console.log("🔄 데이터 새로고침 중...")
                         await loadAllTasks()
                         if (selectedTask) {
                           await handleTaskClick(selectedTask)
                         }
+                        console.log("✅ 모든 처리 완료!")
                       } catch (error: any) {
-                        console.error("Save reply error:", error)
+                        console.error("❌ [답변 저장] 실패:", error)
                         toast({
                           variant: "destructive",
-                          title: "오류",
-                          description: error.message || "답변 저장 중 오류가 발생했습니다.",
+                          title: "❌ 답변 저장 실패",
+                          description: error.message || "답변 저장 중 오류가 발생했습니다. F12 콘솔을 확인하세요.",
                         })
+                      } finally {
+                        setSavingReply(false)
                       }
                     }}
-                    disabled={!taskReplyText.trim()}
+                    disabled={!taskReplyText.trim() || savingReply}
                     size="sm"
                     className="bg-green-600 hover:bg-green-700 text-white font-medium"
                   >
-                    답변 저장
+                    {savingReply ? "💾 저장 중..." : "💾 답변 저장"}
                   </Button>
                 </div>
 
