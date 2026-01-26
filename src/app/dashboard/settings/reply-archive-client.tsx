@@ -20,8 +20,8 @@ interface Reply {
       name: string
       member_number: string
       address: string
-    }
-  }
+    } | null
+  } | null
 }
 
 interface GroupedReplies {
@@ -78,11 +78,14 @@ export default function ReplyArchiveClient() {
       if (error) throw error
 
       console.log("✅ 답변 로딩 완료:", data?.length || 0, "개")
-      setReplies(data || [])
+      
+      // Type assertion for Supabase nested query result
+      const typedData = (data || []) as Reply[]
+      setReplies(typedData)
       
       // Group by date
       const grouped: GroupedReplies = {}
-      data?.forEach((reply) => {
+      typedData.forEach((reply) => {
         const date = new Date(reply.created_at).toLocaleDateString("ko-KR", {
           year: "numeric",
           month: "long",
