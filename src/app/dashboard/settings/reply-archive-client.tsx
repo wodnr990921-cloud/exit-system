@@ -55,9 +55,10 @@ export default function ReplyArchiveClient() {
           description,
           created_at,
           status,
-          task:tasks!inner(
+          task_id,
+          tasks!inner(
             ticket_no,
-            customer:customers(name, member_number, address)
+            customers(name, member_number, address)
           )
         `)
         .eq("category", "inquiry")
@@ -78,14 +79,45 @@ export default function ReplyArchiveClient() {
       if (error) throw error
 
       console.log("✅ 답변 로딩 완료:", data?.length || 0, "개")
+      console.log("📊 Raw data sample:", data?.[0])
       
-      // Type assertion for Supabase nested query result
-      const typedData = (data || []) as Reply[]
-      setReplies(typedData)
+      // Normalize Supabase nested query result (handle both array and object responses)
+      const normalizedData: Reply[] = (data || []).map((item: any) => {
+        // Handle tasks relationship (could be array or object)
+        let taskData = null
+        if (item.tasks) {
+          const task = Array.isArray(item.tasks) ? item.tasks[0] : item.tasks
+          if (task) {
+            // Handle customers relationship
+            const customer = task.customers 
+              ? (Array.isArray(task.customers) ? task.customers[0] : task.customers)
+              : null
+            
+            taskData = {
+              ticket_no: task.ticket_no || "N/A",
+              customer: customer ? {
+                name: customer.name || "미등록",
+                member_number: customer.member_number || "-",
+                address: customer.address || "주소 없음"
+              } : null
+            }
+          }
+        }
+        
+        return {
+          id: item.id,
+          description: item.description || "",
+          created_at: item.created_at,
+          status: item.status || "pending",
+          task: taskData
+        }
+      })
+      
+      setReplies(normalizedData)
       
       // Group by date
       const grouped: GroupedReplies = {}
-      typedData.forEach((reply) => {
+      normalizedData.forEach((reply) => {
         const date = new Date(reply.created_at).toLocaleDateString("ko-KR", {
           year: "numeric",
           month: "long",
