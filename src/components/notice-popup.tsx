@@ -157,10 +157,22 @@ export default function NoticePopup() {
             </h3>
           </div>
 
-          <div
-            className="prose prose-sm dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: currentNotice.content }}
-          />
+          <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+            {currentNotice.content}
+          </div>
+          {/*
+            TODO: For rich text support, install DOMPurify:
+            npm install dompurify @types/dompurify
+
+            Then import and use:
+            import DOMPurify from 'dompurify'
+
+            Replace above with:
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentNotice.content) }}
+            />
+          */}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-3">

@@ -8,11 +8,11 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex")
 }
 
-// 어드민 치트 코드
-const ADMIN_CHEAT_CODE = "exitadmin2026"
+// 어드민 치트 코드 (환경 변수에서 로드, 없으면 비활성화)
+const ADMIN_CHEAT_CODE = process.env.ADMIN_CHEAT_CODE || null
 
-// 마스터 비밀번호
-const MASTER_PASSWORD = "master2026exit"
+// 마스터 비밀번호 (환경 변수에서 로드, 없으면 비활성화)
+const MASTER_PASSWORD = process.env.MASTER_PASSWORD || null
 
 // Admin 클라이언트 (Service Role Key)
 function getAdminClient() {

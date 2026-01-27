@@ -23,10 +23,13 @@ export async function GET(request: NextRequest) {
       .select("*")
       .order("created_at", { ascending: false })
 
-    // 검색
+    // 검색 (SQL injection 방지를 위해 특수문자 이스케이프)
     if (search) {
+      // 특수문자 이스케이프 (%, _, \)
+      const sanitizedSearch = search.replace(/[%_\\]/g, '\\$&')
+
       query = query.or(
-        `member_number.ilike.%${search}%,name.ilike.%${search}%,institution.ilike.%${search}%,prison_number.ilike.%${search}%`
+        `member_number.ilike.%${sanitizedSearch}%,name.ilike.%${sanitizedSearch}%,institution.ilike.%${sanitizedSearch}%,prison_number.ilike.%${sanitizedSearch}%`
       )
     }
 
