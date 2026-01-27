@@ -723,44 +723,60 @@ export default function QAClient() {
                       </Button>
                     </div>
                     
+                    <div className="text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/30 p-2 rounded border border-blue-200 dark:border-blue-800">
+                      ℹ️ 회원번호는 자동으로 생성됩니다 (YYYYMMDD001)
+                    </div>
+                    
                     <div>
-                      <Label className="text-sm">이름 *</Label>
+                      <Label className="text-sm font-semibold">이름 *</Label>
                       <Input
-                        value={newCustomerName}
-                        onChange={(e) => setNewCustomerName(e.target.value)}
+                        value={newCustomer.name}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
                         placeholder="홍길동"
                         className="mt-1"
                       />
                     </div>
                     
-                    <div>
-                      <Label className="text-sm">회원번호 *</Label>
-                      <Input
-                        value={newCustomerMemberNumber}
-                        onChange={(e) => setNewCustomerMemberNumber(e.target.value)}
-                        placeholder="M001"
-                        className="mt-1"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-sm font-semibold">수용기관 *</Label>
+                        <Input
+                          value={newCustomer.institution}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, institution: e.target.value })}
+                          placeholder="서울구치소"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold">수용번호 *</Label>
+                        <Input
+                          value={newCustomer.prison_number}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, prison_number: e.target.value })}
+                          placeholder="2024-12345"
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
                     
-                    <div>
-                      <Label className="text-sm">전화번호</Label>
-                      <Input
-                        value={newCustomerPhone}
-                        onChange={(e) => setNewCustomerPhone(e.target.value)}
-                        placeholder="010-1234-5678"
-                        className="mt-1"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm">주소</Label>
-                      <Input
-                        value={newCustomerAddress}
-                        onChange={(e) => setNewCustomerAddress(e.target.value)}
-                        placeholder="서울시..."
-                        className="mt-1"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-sm font-semibold">입금자명</Label>
+                        <Input
+                          value={newCustomer.depositor_name}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, depositor_name: e.target.value })}
+                          placeholder="홍길동"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold">사서함 주소</Label>
+                        <Input
+                          value={newCustomer.mailbox_address}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, mailbox_address: e.target.value })}
+                          placeholder="남인천 333-333"
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
                     
                     <Button
