@@ -128,18 +128,15 @@ export default function IntakeClient() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [imageZoom, setImageZoom] = useState(1)
 
-  // 신규 회원 등록 state (회원 관리 탭과 동일한 필드)
+  // 신규 회원 등록 state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
   const [registeringCustomer, setRegisteringCustomer] = useState(false)
   const [newCustomer, setNewCustomer] = useState({
     name: "",
-    phone: "",
     institution: "",
     prison_number: "",
     depositor_name: "",
     mailbox_address: "",
-    normal_points: 0,
-    betting_points: 0,
   })
 
   // 기존 회원 검색 및 재지정 state
@@ -403,13 +400,10 @@ export default function IntakeClient() {
     setSearchedCustomers([])
     setNewCustomer({
       name: "",
-      phone: "",
       institution: "",
       prison_number: "",
       depositor_name: "",
       mailbox_address: "",
-      normal_points: 0,
-      betting_points: 0,
     })
     
     await loadTaskComments(task.id)
@@ -571,11 +565,10 @@ export default function IntakeClient() {
         name: newCustomer.name.trim(),
         institution: newCustomer.institution.trim(),
         prison_number: newCustomer.prison_number.trim(),
-        phone: newCustomer.phone.trim() || null,
         depositor_name: newCustomer.depositor_name.trim() || null,
         mailbox_address: newCustomer.mailbox_address.trim() || null,
-        normal_points: newCustomer.normal_points || 0,
-        betting_points: newCustomer.betting_points || 0,
+        normal_points: 0,
+        betting_points: 0,
         total_deposit: 0,
         total_usage: 0,
         total_betting: 0,
@@ -622,13 +615,10 @@ export default function IntakeClient() {
       setShowNewCustomerForm(false)
       setNewCustomer({
         name: "",
-        phone: "",
         institution: "",
         prison_number: "",
         depositor_name: "",
         mailbox_address: "",
-        normal_points: 0,
-        betting_points: 0,
       })
 
       console.log("🎉 [신규 회원 등록] 완료!")
@@ -1658,27 +1648,15 @@ export default function IntakeClient() {
                                   ℹ️ 회원번호는 자동으로 생성됩니다 (YYYYMMDD001)
                                 </div>
                                 
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <Label className="text-xs font-semibold">이름 *</Label>
-                                    <Input
-                                      value={newCustomer.name}
-                                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                                      placeholder="홍길동"
-                                      className="h-8 text-xs"
-                                      disabled={registeringCustomer}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs font-semibold">전화번호</Label>
-                                    <Input
-                                      value={newCustomer.phone}
-                                      onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                                      placeholder="010-1234-5678"
-                                      className="h-8 text-xs"
-                                      disabled={registeringCustomer}
-                                    />
-                                  </div>
+                                <div>
+                                  <Label className="text-xs font-semibold">이름 *</Label>
+                                  <Input
+                                    value={newCustomer.name}
+                                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                                    placeholder="홍길동"
+                                    className="h-8 text-xs"
+                                    disabled={registeringCustomer}
+                                  />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2">
@@ -1721,31 +1699,6 @@ export default function IntakeClient() {
                                       value={newCustomer.mailbox_address}
                                       onChange={(e) => setNewCustomer({ ...newCustomer, mailbox_address: e.target.value })}
                                       placeholder="남인천 333-333"
-                                      className="h-8 text-xs"
-                                      disabled={registeringCustomer}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <Label className="text-xs font-semibold">일반포인트</Label>
-                                    <Input
-                                      type="number"
-                                      value={newCustomer.normal_points}
-                                      onChange={(e) => setNewCustomer({ ...newCustomer, normal_points: parseInt(e.target.value) || 0 })}
-                                      placeholder="0"
-                                      className="h-8 text-xs"
-                                      disabled={registeringCustomer}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs font-semibold">배팅포인트</Label>
-                                    <Input
-                                      type="number"
-                                      value={newCustomer.betting_points}
-                                      onChange={(e) => setNewCustomer({ ...newCustomer, betting_points: parseInt(e.target.value) || 0 })}
-                                      placeholder="0"
                                       className="h-8 text-xs"
                                       disabled={registeringCustomer}
                                     />
