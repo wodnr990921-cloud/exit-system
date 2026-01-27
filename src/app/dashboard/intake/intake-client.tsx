@@ -628,21 +628,16 @@ export default function IntakeClient() {
       })
 
       console.log("5️⃣ 티켓 정보 새로고침 중...")
-      // Reload task
+      // Reload task (다이얼로그는 열린 상태로 유지하면서 정보만 갱신)
       await handleTaskClick(selectedTask)
 
       console.log("🎉🎉🎉 [신규 회원 등록 완료!!!] 🎉🎉🎉")
 
-      // 성공 토스트
+      // 성공 토스트 (alert는 제거하여 UX 개선)
       toast({
         title: "✅ 신규 회원 등록이 완료되었습니다!",
         description: `${createdCustomer.name} (${autoMemberNumber}) 회원이 등록되고 티켓에 자동으로 지정되었습니다.`,
       })
-
-      // 추가 알림 (확실한 피드백)
-      setTimeout(() => {
-        alert(`✅ 신규 회원 등록이 완료되었습니다!\n\n회원명: ${createdCustomer.name}\n회원번호: ${autoMemberNumber}\n\n티켓에 자동으로 지정되었습니다.`)
-      }, 500)
 
     } catch (error: any) {
       console.error("❌❌❌ [신규 회원 등록 실패!!!]", error)
@@ -658,8 +653,6 @@ export default function IntakeClient() {
         title: "❌ 회원 등록 실패",
         description: error.message || "회원 등록 중 오류가 발생했습니다. F12 콘솔을 확인하세요.",
       })
-      
-      alert(`❌ 회원 등록 실패\n\n${error.message || "오류가 발생했습니다."}\n\nF12를 눌러 콘솔을 확인하세요.`)
     } finally {
       setRegisteringCustomer(false)
       console.log("🔄 등록 프로세스 종료")
