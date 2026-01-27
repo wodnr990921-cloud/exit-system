@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { X, UserPlus, CheckCircle2, ZoomIn, ImageIcon } from "lucide-react"
+import { X, UserPlus, CheckCircle2, ZoomIn, ImageIcon, Search } from "lucide-react"
 
 interface Task {
   id: string
@@ -133,6 +133,12 @@ export default function IntakeClient() {
   const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
   const [newCustomerPhone, setNewCustomerPhone] = useState("")
   const [newCustomerAddress, setNewCustomerAddress] = useState("")
+
+  // 기존 회원 검색 및 재지정 state
+  const [showCustomerSearchForm, setShowCustomerSearchForm] = useState(false)
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("")
+  const [searchedCustomers, setSearchedCustomers] = useState<any[]>([])
+  const [searchingCustomers, setSearchingCustomers] = useState(false)
 
   // 현재 사용자 및 티켓 삭제
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -481,6 +487,70 @@ export default function IntakeClient() {
         variant: "destructive",
         title: "오류",
         description: error.message || "회원 등록 중 오류가 발생했습니다.",
+      })
+    }
+  }
+
+  // 기존 회원 검색
+  const handleSearchCustomers = async () => {
+    if (!customerSearchQuery.trim()) {
+      setSearchedCustomers([])
+      return
+    }
+
+    setSearchingCustomers(true)
+    try {
+      const query = customerSearchQuery.toLowerCase().trim()
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .or(`name.ilike.%${query}%,member_number.ilike.%${query}%,phone.ilike.%${query}%`)
+        .limit(10)
+
+      if (error) throw error
+      setSearchedCustomers(data || [])
+    } catch (error: any) {
+      console.error("Search customers error:", error)
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "회원 검색 중 오류가 발생했습니다.",
+      })
+    } finally {
+      setSearchingCustomers(false)
+    }
+  }
+
+  // 기존 회원으로 재지정
+  const handleReassignCustomer = async (customerId: string) => {
+    if (!selectedTask) return
+
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ customer_id: customerId })
+        .eq("id", selectedTask.id)
+
+      if (error) throw error
+
+      // Reload task to get updated customer info
+      await handleTaskClick(selectedTask)
+      
+      // Reset states
+      setShowCustomerSearchForm(false)
+      setCustomerSearchQuery("")
+      setSearchedCustomers([])
+
+      toast({
+        title: "✅ 회원 재지정 완료",
+        description: "티켓이 선택한 회원에게 재지정되었습니다.",
+      })
+    } catch (error: any) {
+      console.error("Reassign customer error:", error)
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "회원 재지정 중 오류가 발생했습니다.",
       })
     }
   }
@@ -1255,17 +1325,109 @@ export default function IntakeClient() {
                         </p>
                       ) : (
                         <div className="mt-1 space-y-2">
-                          <p className="text-sm text-red-600 dark:text-red-400">미등록 회원</p>
-                          {!showNewCustomerForm && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setShowNewCustomerForm(true)}
-                              className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            >
-                              <UserPlus className="w-3 h-3 mr-1" />
-                              신규 회원 등록
-                            </Button>
+                          <p className="text-sm text-red-600 dark:text-red-400 font-semibold">⚠️ 미등록 회원</p>
+                          {!showNewCustomerForm && !showCustomerSearchForm && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setShowCustomerSearchForm(true)
+                                  setShowNewCustomerForm(false)
+                                }}
+                                className="h-7 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-300"
+                              >
+                                <Search className="w-3 h-3 mr-1" />
+                                기존 회원 검색
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setShowNewCustomerForm(true)
+                                  setShowCustomerSearchForm(false)
+                                }}
+                                className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-300"
+                              >
+                                <UserPlus className="w-3 h-3 mr-1" />
+                                신규 회원 등록
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {/* 기존 회원 검색 폼 */}
+                          {showCustomerSearchForm && (
+                            <Card className="border-2 border-purple-500 bg-purple-50 dark:bg-purple-900/20 p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-bold text-purple-900 dark:text-purple-100">🔍 기존 회원 검색</h4>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setShowCustomerSearchForm(false)
+                                    setCustomerSearchQuery("")
+                                    setSearchedCustomers([])
+                                  }}
+                                  className="h-5 w-5 p-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={customerSearchQuery}
+                                    onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleSearchCustomers()
+                                      }
+                                    }}
+                                    placeholder="이름, 회원번호, 전화번호 검색..."
+                                    className="h-7 text-xs flex-1"
+                                  />
+                                  <Button
+                                    onClick={handleSearchCustomers}
+                                    disabled={searchingCustomers}
+                                    className="h-7 px-3 bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                                    size="sm"
+                                  >
+                                    {searchingCustomers ? "검색 중..." : "검색"}
+                                  </Button>
+                                </div>
+                                
+                                {/* 검색 결과 */}
+                                {searchedCustomers.length > 0 && (
+                                  <div className="max-h-48 overflow-y-auto space-y-1 border-t pt-2">
+                                    {searchedCustomers.map((customer) => (
+                                      <div
+                                        key={customer.id}
+                                        className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border hover:border-purple-400 cursor-pointer"
+                                        onClick={() => handleReassignCustomer(customer.id)}
+                                      >
+                                        <div className="flex-1">
+                                          <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                                            {customer.name} ({customer.member_number})
+                                          </div>
+                                          {customer.phone && (
+                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                              {customer.phone}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {customerSearchQuery && searchedCustomers.length === 0 && !searchingCustomers && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
+                                    검색 결과가 없습니다.
+                                  </p>
+                                )}
+                              </div>
+                            </Card>
                           )}
                           {showNewCustomerForm && (
                             <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20 p-3 space-y-2">
