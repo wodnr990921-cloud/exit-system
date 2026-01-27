@@ -68,10 +68,22 @@ export default function QAClient() {
 
   // 신규 회원 등록 관련 state
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
-  const [newCustomerName, setNewCustomerName] = useState("")
-  const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
-  const [newCustomerPhone, setNewCustomerPhone] = useState("")
-  const [newCustomerAddress, setNewCustomerAddress] = useState("")
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    institution: "",
+    prison_number: "",
+    depositor_name: "",
+    mailbox_address: "",
+  })
+
+  // 장바구니 기능 관련 state
+  const [activeCartTab, setActiveCartTab] = useState("books")
+  const [bookSearch, setBookSearch] = useState("")
+  const [books, setBooks] = useState<any[]>([])
+  const [searchingBooks, setSearchingBooks] = useState(false)
+  const [selectedBooks, setSelectedBooks] = useState<any[]>([])
+  const [purchaseItems, setPurchaseItems] = useState<Array<{description: string, amount: number}>>([{description: "", amount: 0}])
+  const [otherInquiry, setOtherInquiry] = useState("")
 
   // 회원 검색
   const handleSearchCustomer = async (query: string) => {

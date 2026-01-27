@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertTriangle, Flag, X, Users, UserX, Home } from "lucide-react"
+import { AlertTriangle, Flag, X, Users, UserX, UserPlus, Home } from "lucide-react"
 import dynamic from "next/dynamic"
 
 const BlacklistContent = dynamic(() => import("../blacklist/blacklist-client"), {
@@ -671,7 +671,14 @@ export default function MembersClient() {
           {/* Members Tab Content */}
           <TabsContent value="members" className="space-y-6">
             <div className="flex justify-end">
-              <Button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 hover:bg-blue-700">+ 신규회원 추가</Button>
+              <Button 
+                onClick={() => setShowCreateDialog(true)} 
+                className="bg-blue-600 hover:bg-blue-700"
+                title="모든 직원이 신규 회원을 등록할 수 있습니다"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                신규회원 추가
+              </Button>
             </div>
 
         {/* 회원 조회 */}

@@ -1149,13 +1149,7 @@ export default function IntakeClient() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">티켓 목록</h1>
           <div className="flex gap-2">
-            <Button 
-              onClick={handlePrintReplies} 
-              variant="outline"
-              className="bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 border-green-500 text-green-700 dark:text-green-400"
-            >
-              📮 답변 일괄 출력
-            </Button>
+            {/* 답변 일괄 출력 버튼은 QA 페이지 상단으로 이동 */}
             <Button onClick={() => router.push("/dashboard/reception")} className="bg-blue-600 hover:bg-blue-700">
               + 신규 티켓 작성
             </Button>
