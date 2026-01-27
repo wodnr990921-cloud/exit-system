@@ -134,6 +134,7 @@ export default function IntakeClient() {
   const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
   const [newCustomerPhone, setNewCustomerPhone] = useState("")
   const [newCustomerAddress, setNewCustomerAddress] = useState("")
+  const [registeringCustomer, setRegisteringCustomer] = useState(false)
 
   // 기존 회원 검색 및 재지정 state
   const [showCustomerSearchForm, setShowCustomerSearchForm] = useState(false)
@@ -485,6 +486,8 @@ export default function IntakeClient() {
 
   // 신규 회원 등록
   const handleRegisterNewCustomer = async () => {
+    console.log("🆕 [신규 회원 등록] 시작")
+    
     if (!newCustomerName.trim() || !newCustomerMemberNumber.trim()) {
       toast({
         variant: "destructive",
@@ -494,9 +497,25 @@ export default function IntakeClient() {
       return
     }
 
-    if (!selectedTask) return
+    if (!selectedTask) {
+      console.error("❌ selectedTask가 없습니다")
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "티켓 정보를 찾을 수 없습니다.",
+      })
+      return
+    }
 
+    setRegisteringCustomer(true)
     try {
+      console.log("📝 회원 정보 저장 중...", {
+        name: newCustomerName.trim(),
+        memberNumber: newCustomerMemberNumber.trim(),
+        phone: newCustomerPhone.trim(),
+        address: newCustomerAddress.trim()
+      })
+
       const { data: newCustomer, error: customerError } = await supabase
         .from("customers")
         .insert({
@@ -508,7 +527,16 @@ export default function IntakeClient() {
         .select()
         .single()
 
-      if (customerError) throw customerError
+      if (customerError) {
+        console.error("❌ 회원 저장 실패:", customerError)
+        throw customerError
+      }
+
+      console.log("✅ 회원 저장 성공:", newCustomer)
+      console.log("🔗 티켓에 회원 연결 중...", {
+        taskId: selectedTask.id,
+        customerId: newCustomer.id
+      })
 
       // Update task with new customer
       const { error: updateError } = await supabase
@@ -519,28 +547,39 @@ export default function IntakeClient() {
         })
         .eq("id", selectedTask.id)
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error("❌ 티켓 업데이트 실패:", updateError)
+        throw updateError
+      }
+
+      console.log("✅ 티켓 업데이트 성공")
+      console.log("🔄 티켓 정보 새로고침 중...")
 
       // Reload task
       await handleTaskClick(selectedTask)
 
+      // Reset form
       setShowNewCustomerForm(false)
       setNewCustomerName("")
       setNewCustomerMemberNumber("")
       setNewCustomerPhone("")
       setNewCustomerAddress("")
 
+      console.log("🎉 [신규 회원 등록] 완료!")
+
       toast({
-        title: "회원 등록 완료",
+        title: "✅ 회원 등록 완료",
         description: `${newCustomer.name} (${newCustomer.member_number}) 회원이 등록되고 티켓에 연결되었습니다.`,
       })
     } catch (error: any) {
-      console.error("Register customer error:", error)
+      console.error("❌ [신규 회원 등록] 실패:", error)
       toast({
         variant: "destructive",
-        title: "오류",
-        description: error.message || "회원 등록 중 오류가 발생했습니다.",
+        title: "❌ 회원 등록 실패",
+        description: error.message || "회원 등록 중 오류가 발생했습니다. F12 콘솔을 확인하세요.",
       })
+    } finally {
+      setRegisteringCustomer(false)
     }
   }
 
@@ -1587,11 +1626,21 @@ export default function IntakeClient() {
                                 </div>
                                 <Button
                                   onClick={handleRegisterNewCustomer}
+                                  disabled={registeringCustomer}
                                   className="w-full h-7 bg-green-600 hover:bg-green-700 text-white text-xs"
                                   size="sm"
                                 >
-                                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                                  회원 등록 및 연결
+                                  {registeringCustomer ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                      등록 중...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      회원 등록 및 연결
+                                    </>
+                                  )}
                                 </Button>
                               </div>
                             </Card>
