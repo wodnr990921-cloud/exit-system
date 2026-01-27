@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -24,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { X, UserPlus, CheckCircle2, ZoomIn, ImageIcon, Search } from "lucide-react"
+import { X, UserPlus, CheckCircle2, ZoomIn, ImageIcon, Search, Book, ShoppingCart, MessageSquare, Loader2 } from "lucide-react"
 
 interface Task {
   id: string
@@ -139,6 +140,17 @@ export default function IntakeClient() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState("")
   const [searchedCustomers, setSearchedCustomers] = useState<any[]>([])
   const [searchingCustomers, setSearchingCustomers] = useState(false)
+
+  // 작업 탭 및 장바구니 state
+  const [workTab, setWorkTab] = useState("reply") // reply, books, purchase, other
+  const [bookSearch, setBookSearch] = useState("")
+  const [books, setBooks] = useState<any[]>([])
+  const [searchingBooks, setSearchingBooks] = useState(false)
+  const [selectedBooks, setSelectedBooks] = useState<any[]>([])
+  const [purchaseItems, setPurchaseItems] = useState<Array<{ description: string; amount: number }>>([
+    { description: "", amount: 0 }
+  ])
+  const [otherInquiry, setOtherInquiry] = useState("")
 
   // 현재 사용자 및 티켓 삭제
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -563,6 +575,32 @@ export default function IntakeClient() {
         title: "오류",
         description: "회원 재지정 중 오류가 발생했습니다.",
       })
+    }
+  }
+
+  // 도서 검색
+  const searchBooks = async (query: string) => {
+    if (query.length < 2) {
+      setBooks([])
+      return
+    }
+
+    setSearchingBooks(true)
+    try {
+      const { data, error } = await supabase
+        .from("inventory")
+        .select("*")
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+        .limit(10)
+
+      if (error) throw error
+
+      setBooks(data || [])
+    } catch (error: any) {
+      console.error("Error searching books:", error)
+      setBooks([])
+    } finally {
+      setSearchingBooks(false)
     }
   }
 
@@ -1679,38 +1717,268 @@ export default function IntakeClient() {
                   </div>
                 )}
 
-                {/* 답변 작성 (task_items에 저장) */}
+                {/* 작업 추가 Tabs */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
-                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">✍️ 답변 작성</Label>
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 작업 추가</Label>
                   </div>
-                  <Textarea
-                    placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
-                    value={taskReplyText}
-                    onChange={(e) => setTaskReplyText(e.target.value)}
-                    rows={3}
-                    className="border-gray-300 dark:border-gray-700"
-                  />
+
+                  <Tabs value={workTab} onValueChange={setWorkTab}>
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="reply">
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        답변
+                      </TabsTrigger>
+                      <TabsTrigger value="books">
+                        <Book className="w-4 h-4 mr-1" />
+                        도서
+                      </TabsTrigger>
+                      <TabsTrigger value="purchase">
+                        <ShoppingCart className="w-4 h-4 mr-1" />
+                        구매
+                      </TabsTrigger>
+                      <TabsTrigger value="other">
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        기타
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* 답변 Tab */}
+                    <TabsContent value="reply" className="space-y-3">
+                      <Textarea
+                        placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
+                        value={taskReplyText}
+                        onChange={(e) => setTaskReplyText(e.target.value)}
+                        rows={3}
+                        className="border-gray-300 dark:border-gray-700"
+                      />
+                    </TabsContent>
+
+                    {/* 도서 Tab */}
+                    <TabsContent value="books" className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>도서 검색</Label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            placeholder="도서명, 저자명..."
+                            value={bookSearch}
+                            onChange={(e) => {
+                              setBookSearch(e.target.value)
+                              searchBooks(e.target.value)
+                            }}
+                            className="pl-9"
+                          />
+                        </div>
+
+                        {searchingBooks && (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                          </div>
+                        )}
+
+                        {!searchingBooks && books.length > 0 && (
+                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 max-h-48 overflow-y-auto">
+                            {books.map((book) => (
+                              <button
+                                key={book.id}
+                                onClick={() => {
+                                  if (!selectedBooks.find((b) => b.id === book.id)) {
+                                    setSelectedBooks([...selectedBooks, book])
+                                  }
+                                  setBookSearch("")
+                                  setBooks([])
+                                }}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                              >
+                                <div className="font-medium text-gray-900 dark:text-gray-50">{book.name}</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  {book.price?.toLocaleString()}원
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {selectedBooks.length > 0 && (
+                          <div className="space-y-2">
+                            {selectedBooks.map((book) => (
+                              <Card key={book.id}>
+                                <CardContent className="p-3 flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-gray-900 dark:text-gray-50">{book.name}</div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {book.price?.toLocaleString()}원
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      setSelectedBooks(selectedBooks.filter((b) => b.id !== book.id))
+                                    }
+                                    className="text-gray-900 dark:text-gray-100"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    {/* 구매 Tab */}
+                    <TabsContent value="purchase" className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>구매 항목</Label>
+                        {purchaseItems.map((item, index) => (
+                          <div key={index} className="flex gap-2">
+                            <Input
+                              placeholder="상품명"
+                              value={item.description}
+                              onChange={(e) => {
+                                const newItems = [...purchaseItems]
+                                newItems[index].description = e.target.value
+                                setPurchaseItems(newItems)
+                              }}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number"
+                              placeholder="금액"
+                              value={item.amount || ""}
+                              onChange={(e) => {
+                                const newItems = [...purchaseItems]
+                                newItems[index].amount = parseFloat(e.target.value) || 0
+                                setPurchaseItems(newItems)
+                              }}
+                              className="w-32"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (purchaseItems.length > 1) {
+                                  setPurchaseItems(purchaseItems.filter((_, i) => i !== index))
+                                }
+                              }}
+                              disabled={purchaseItems.length === 1}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPurchaseItems([...purchaseItems, { description: "", amount: 0 }])}
+                          className="w-full"
+                        >
+                          + 항목 추가
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    {/* 기타 Tab */}
+                    <TabsContent value="other" className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>기타 문의 내용</Label>
+                        <Textarea
+                          placeholder="기타 문의사항을 입력하세요..."
+                          value={otherInquiry}
+                          onChange={(e) => setOtherInquiry(e.target.value)}
+                          rows={6}
+                          className="border-gray-300 dark:border-gray-700"
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+
                   <Button
                     onClick={async () => {
-                      if (!selectedTask || !taskReplyText.trim() || savingReply) return
+                      if (!selectedTask || savingReply) return
 
-                      console.log("💾 [답변 저장] 시작:", {
+                      // Validate based on tab
+                      const hasReply = taskReplyText.trim()
+                      const hasBooks = selectedBooks.length > 0
+                      const hasPurchase = purchaseItems.some(item => item.description.trim())
+                      const hasOther = otherInquiry.trim()
+
+                      if (!hasReply && !hasBooks && !hasPurchase && !hasOther) {
+                        toast({
+                          variant: "destructive",
+                          title: "오류",
+                          description: "작업 내용을 입력해주세요.",
+                        })
+                        return
+                      }
+
+                      console.log("💾 [작업 저장] 시작:", {
                         taskId: selectedTask.id,
-                        replyLength: taskReplyText.trim().length
+                        hasReply,
+                        hasBooks,
+                        hasPurchase,
+                        hasOther
                       })
 
                       setSavingReply(true)
                       try {
-                        // Insert reply as task_item
-                        console.log("📝 task_items에 답변 저장 중...")
-                        const { data: insertData, error } = await supabase.from("task_items").insert({
-                          task_id: selectedTask.id,
-                          category: "inquiry",
-                          description: taskReplyText.trim(),
-                          amount: 0,
-                          status: "approved",
-                        }).select()
+                        const taskItems: any[] = []
+
+                        // Add reply
+                        if (hasReply) {
+                          taskItems.push({
+                            task_id: selectedTask.id,
+                            category: "inquiry",
+                            description: taskReplyText.trim(),
+                            amount: 0,
+                            status: "approved",
+                          })
+                        }
+
+                        // Add books
+                        for (const book of selectedBooks) {
+                          taskItems.push({
+                            task_id: selectedTask.id,
+                            category: "book",
+                            description: book.name,
+                            amount: book.price || 0,
+                            status: "pending",
+                          })
+                        }
+
+                        // Add purchase items
+                        for (const item of purchaseItems) {
+                          if (item.description.trim()) {
+                            taskItems.push({
+                              task_id: selectedTask.id,
+                              category: "product",
+                              description: item.description.trim(),
+                              amount: item.amount || 0,
+                              status: "pending",
+                            })
+                          }
+                        }
+
+                        // Add other inquiry
+                        if (hasOther) {
+                          taskItems.push({
+                            task_id: selectedTask.id,
+                            category: "inquiry",
+                            description: otherInquiry.trim(),
+                            amount: 0,
+                            status: "pending",
+                          })
+                        }
+
+                        // Insert all task items
+                        console.log("📝 task_items에 저장 중... (", taskItems.length, "개)")
+                        const { data: insertData, error } = await supabase
+                          .from("task_items")
+                          .insert(taskItems)
+                          .select()
 
                         if (error) {
                           console.error("❌ task_items 저장 실패:", error)
@@ -1751,19 +2019,21 @@ export default function IntakeClient() {
                           }
                         }
 
-                        // Clear input and show success
-                        const savedText = taskReplyText.trim()
+                        // Clear all inputs and show success
                         setTaskReplyText("")
+                        setSelectedBooks([])
+                        setPurchaseItems([{ description: "", amount: 0 }])
+                        setOtherInquiry("")
                         
                         // Show prominent success message
                         toast({
-                          title: "✅ 답변 저장 완료!",
-                          description: `${savedText.length}자 답변이 성공적으로 저장되었습니다. 위쪽에서 확인하세요.`,
+                          title: "✅ 작업 저장 완료!",
+                          description: `${taskItems.length}개의 작업이 성공적으로 저장되었습니다.`,
                         })
                         
                         // Also log to console for visibility
-                        console.log("🎉 [답변 저장] 성공 메시지 표시됨")
-                        console.log("💾 저장된 답변:", savedText)
+                        console.log("🎉 [작업 저장] 성공 메시지 표시됨")
+                        console.log("💾 저장된 작업:", taskItems)
 
                         // Refresh saved replies immediately without full page reload
                         console.log("🔄 답변 목록 새로고침 중...")
@@ -1782,11 +2052,11 @@ export default function IntakeClient() {
                         setSavingReply(false)
                       }
                     }}
-                    disabled={!taskReplyText.trim() || savingReply}
+                    disabled={savingReply}
                     size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium w-full"
                   >
-                    {savingReply ? "💾 저장 중..." : "💾 답변 저장"}
+                    {savingReply ? "💾 저장 중..." : "💾 작업 저장"}
                   </Button>
                 </div>
 
