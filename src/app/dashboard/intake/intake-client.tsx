@@ -430,6 +430,14 @@ export default function IntakeClient() {
     setLoadingReplies(true)
     try {
       console.log("📋 저장된 답변 로딩 중...", taskId)
+      
+      // Get task creation time
+      const { data: taskData } = await supabase
+        .from("tasks")
+        .select("created_at")
+        .eq("id", taskId)
+        .single()
+      
       const { data, error } = await supabase
         .from("task_items")
         .select("*")
@@ -439,11 +447,33 @@ export default function IntakeClient() {
 
       if (error) throw error
       
-      // Filter out OCR letter content (only show actual replies)
-      // OCR content from mailroom is now stored as "letter" category
-      const actualReplies = data || []
+      // Filter out OCR content from initial task creation
+      // OCR content is usually created within 5 seconds of task creation
+      const actualReplies = (data || []).filter(item => {
+        if (!taskData) return true
+        
+        const taskCreatedAt = new Date(taskData.created_at).getTime()
+        const itemCreatedAt = new Date(item.created_at).getTime()
+        const timeDiff = itemCreatedAt - taskCreatedAt
+        
+        // Filter out items created within 5 seconds of task creation (likely OCR)
+        const isOcrContent = timeDiff < 5000
+        
+        // Also filter out very long texts that are likely OCR summaries
+        const isVeryLong = item.description && item.description.length > 500
+        
+        console.log(`Item ${item.id}:`, {
+          timeDiff: `${timeDiff}ms`,
+          length: item.description?.length,
+          isOcrContent,
+          isVeryLong,
+          willShow: !isOcrContent && !isVeryLong
+        })
+        
+        return !isOcrContent && !isVeryLong
+      })
       
-      console.log("✅ 저장된 답변:", actualReplies.length, "개")
+      console.log("✅ 저장된 답변:", actualReplies.length, "개 (전체:", data?.length, "개)")
       setSavedReplies(actualReplies)
     } catch (error: any) {
       console.error("❌ 답변 로딩 오류:", error)
@@ -1369,15 +1399,29 @@ export default function IntakeClient() {
                         <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
                       </div>
                       {(() => {
-                        const hasValidCustomer = selectedTask.customer && 
-                                                 selectedTask.customer.name && 
-                                                 selectedTask.customer.member_number
+                        // Check if customer exists and has valid (non-temporary) info
+                        const customer = selectedTask.customer
+                        const hasCustomerData = customer && customer.name && customer.member_number
+                        
+                        // Check for temporary/unregistered patterns
+                        const isTempMember = hasCustomerData && (
+                          customer.member_number.startsWith('TEMP') ||
+                          customer.member_number.startsWith('미등록') ||
+                          customer.member_number.startsWith('UNREG') ||
+                          customer.name === '미등록' ||
+                          customer.name.startsWith('미등록')
+                        )
+                        
+                        const hasValidCustomer = hasCustomerData && !isTempMember
+                        
                         console.log('🔍 Customer check:', {
-                          hasCustomer: !!selectedTask.customer,
-                          customer: selectedTask.customer,
+                          hasCustomer: !!customer,
+                          customer: customer,
+                          hasCustomerData,
+                          isTempMember,
                           hasValidCustomer,
-                          name: selectedTask.customer?.name,
-                          memberNumber: selectedTask.customer?.member_number
+                          name: customer?.name,
+                          memberNumber: customer?.member_number
                         })
                         return hasValidCustomer
                       })() ? (
