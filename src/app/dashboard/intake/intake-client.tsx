@@ -128,13 +128,19 @@ export default function IntakeClient() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [imageZoom, setImageZoom] = useState(1)
 
-  // 신규 회원 등록 state
+  // 신규 회원 등록 state (회원 관리 탭과 동일한 필드)
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
-  const [newCustomerName, setNewCustomerName] = useState("")
-  const [newCustomerMemberNumber, setNewCustomerMemberNumber] = useState("")
-  const [newCustomerPhone, setNewCustomerPhone] = useState("")
-  const [newCustomerAddress, setNewCustomerAddress] = useState("")
   const [registeringCustomer, setRegisteringCustomer] = useState(false)
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    phone: "",
+    institution: "",
+    prison_number: "",
+    depositor_name: "",
+    mailbox_address: "",
+    normal_points: 0,
+    betting_points: 0,
+  })
 
   // 기존 회원 검색 및 재지정 state
   const [showCustomerSearchForm, setShowCustomerSearchForm] = useState(false)
@@ -395,10 +401,16 @@ export default function IntakeClient() {
     setShowCustomerSearchForm(false)
     setCustomerSearchQuery("")
     setSearchedCustomers([])
-    setNewCustomerName("")
-    setNewCustomerMemberNumber("")
-    setNewCustomerPhone("")
-    setNewCustomerAddress("")
+    setNewCustomer({
+      name: "",
+      phone: "",
+      institution: "",
+      prison_number: "",
+      depositor_name: "",
+      mailbox_address: "",
+      normal_points: 0,
+      betting_points: 0,
+    })
     
     await loadTaskComments(task.id)
     await loadSavedReplies(task.id)
@@ -484,15 +496,56 @@ export default function IntakeClient() {
     }
   }
 
-  // 신규 회원 등록
+  // 회원번호 자동 생성 (회원 관리 탭과 동일한 로직)
+  const generateMemberNumber = async (): Promise<string> => {
+    const today = new Date()
+    const datePrefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
+    
+    const { data: existingMembers } = await supabase
+      .from("customers")
+      .select("member_number")
+      .like("member_number", `${datePrefix}%`)
+      .order("member_number", { ascending: false })
+      .limit(1)
+
+    if (existingMembers && existingMembers.length > 0) {
+      const lastNumber = existingMembers[0].member_number
+      const lastSequence = parseInt(lastNumber.slice(-3)) || 0
+      const newSequence = lastSequence + 1
+      return `${datePrefix}${String(newSequence).padStart(3, "0")}`
+    } else {
+      return `${datePrefix}001`
+    }
+  }
+
+  // 신규 회원 등록 (회원 관리 탭과 동일한 로직)
   const handleRegisterNewCustomer = async () => {
     console.log("🆕 [신규 회원 등록] 시작")
     
-    if (!newCustomerName.trim() || !newCustomerMemberNumber.trim()) {
+    // 필수 필드 검증
+    if (!newCustomer.name.trim()) {
       toast({
         variant: "destructive",
         title: "오류",
-        description: "이름과 회원번호는 필수입니다.",
+        description: "이름은 필수입니다.",
+      })
+      return
+    }
+
+    if (!newCustomer.institution.trim()) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "수용기관은 필수입니다.",
+      })
+      return
+    }
+
+    if (!newCustomer.prison_number.trim()) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "수용번호는 필수입니다.",
       })
       return
     }
@@ -509,21 +562,28 @@ export default function IntakeClient() {
 
     setRegisteringCustomer(true)
     try {
-      console.log("📝 회원 정보 저장 중...", {
-        name: newCustomerName.trim(),
-        memberNumber: newCustomerMemberNumber.trim(),
-        phone: newCustomerPhone.trim(),
-        address: newCustomerAddress.trim()
-      })
+      // 회원번호 자동 생성
+      const autoMemberNumber = await generateMemberNumber()
+      console.log("📝 회원 정보 저장 중...", { autoMemberNumber, ...newCustomer })
 
-      const { data: newCustomer, error: customerError } = await supabase
+      const customerData = {
+        member_number: autoMemberNumber,
+        name: newCustomer.name.trim(),
+        institution: newCustomer.institution.trim(),
+        prison_number: newCustomer.prison_number.trim(),
+        phone: newCustomer.phone.trim() || null,
+        depositor_name: newCustomer.depositor_name.trim() || null,
+        mailbox_address: newCustomer.mailbox_address.trim() || null,
+        normal_points: newCustomer.normal_points || 0,
+        betting_points: newCustomer.betting_points || 0,
+        total_deposit: 0,
+        total_usage: 0,
+        total_betting: 0,
+      }
+
+      const { data: createdCustomer, error: customerError } = await supabase
         .from("customers")
-        .insert({
-          name: newCustomerName.trim(),
-          member_number: newCustomerMemberNumber.trim(),
-          phone: newCustomerPhone.trim() || null,
-          address: newCustomerAddress.trim() || null,
-        })
+        .insert([customerData])
         .select()
         .single()
 
@@ -532,18 +592,18 @@ export default function IntakeClient() {
         throw customerError
       }
 
-      console.log("✅ 회원 저장 성공:", newCustomer)
+      console.log("✅ 회원 저장 성공:", createdCustomer)
       console.log("🔗 티켓에 회원 연결 중...", {
         taskId: selectedTask.id,
-        customerId: newCustomer.id
+        customerId: createdCustomer.id
       })
 
       // Update task with new customer
       const { error: updateError } = await supabase
         .from("tasks")
         .update({
-          customer_id: newCustomer.id,
-          member_id: newCustomer.id,
+          customer_id: createdCustomer.id,
+          member_id: createdCustomer.id,
         })
         .eq("id", selectedTask.id)
 
@@ -560,16 +620,22 @@ export default function IntakeClient() {
 
       // Reset form
       setShowNewCustomerForm(false)
-      setNewCustomerName("")
-      setNewCustomerMemberNumber("")
-      setNewCustomerPhone("")
-      setNewCustomerAddress("")
+      setNewCustomer({
+        name: "",
+        phone: "",
+        institution: "",
+        prison_number: "",
+        depositor_name: "",
+        mailbox_address: "",
+        normal_points: 0,
+        betting_points: 0,
+      })
 
       console.log("🎉 [신규 회원 등록] 완료!")
 
       toast({
         title: "✅ 회원 등록 완료",
-        description: `${newCustomer.name} (${newCustomer.member_number}) 회원이 등록되고 티켓에 연결되었습니다.`,
+        description: `${createdCustomer.name} (${autoMemberNumber}) 회원이 등록되고 티켓에 연결되었습니다.`,
       })
     } catch (error: any) {
       console.error("❌ [신규 회원 등록] 실패:", error)
@@ -1575,9 +1641,9 @@ export default function IntakeClient() {
                             </Card>
                           )}
                           {showNewCustomerForm && (
-                            <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20 p-3 space-y-2">
+                            <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20 p-4 space-y-3">
                               <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-bold text-green-900 dark:text-green-100">✨ 신규 회원 등록</h4>
+                                <h4 className="text-sm font-bold text-green-900 dark:text-green-100">✨ 신규 회원 등록</h4>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1587,57 +1653,119 @@ export default function IntakeClient() {
                                   <X className="w-3 h-3" />
                                 </Button>
                               </div>
-                              <div className="space-y-1.5">
-                                <div>
-                                  <Label className="text-xs">이름 *</Label>
-                                  <Input
-                                    value={newCustomerName}
-                                    onChange={(e) => setNewCustomerName(e.target.value)}
-                                    placeholder="홍길동"
-                                    className="h-7 text-xs"
-                                  />
+                              <div className="space-y-3">
+                                <div className="text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/30 p-2 rounded border border-blue-200 dark:border-blue-800">
+                                  ℹ️ 회원번호는 자동으로 생성됩니다 (YYYYMMDD001)
                                 </div>
-                                <div>
-                                  <Label className="text-xs">회원번호 *</Label>
-                                  <Input
-                                    value={newCustomerMemberNumber}
-                                    onChange={(e) => setNewCustomerMemberNumber(e.target.value)}
-                                    placeholder="M001"
-                                    className="h-7 text-xs"
-                                  />
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs font-semibold">이름 *</Label>
+                                    <Input
+                                      value={newCustomer.name}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                                      placeholder="홍길동"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs font-semibold">전화번호</Label>
+                                    <Input
+                                      value={newCustomer.phone}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                                      placeholder="010-1234-5678"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label className="text-xs">전화번호</Label>
-                                  <Input
-                                    value={newCustomerPhone}
-                                    onChange={(e) => setNewCustomerPhone(e.target.value)}
-                                    placeholder="010-1234-5678"
-                                    className="h-7 text-xs"
-                                  />
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs font-semibold">수용기관 *</Label>
+                                    <Input
+                                      value={newCustomer.institution}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, institution: e.target.value })}
+                                      placeholder="서울구치소"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs font-semibold">수용번호 *</Label>
+                                    <Input
+                                      value={newCustomer.prison_number}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, prison_number: e.target.value })}
+                                      placeholder="2024-12345"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label className="text-xs">주소</Label>
-                                  <Input
-                                    value={newCustomerAddress}
-                                    onChange={(e) => setNewCustomerAddress(e.target.value)}
-                                    placeholder="서울시..."
-                                    className="h-7 text-xs"
-                                  />
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs font-semibold">입금자명</Label>
+                                    <Input
+                                      value={newCustomer.depositor_name}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, depositor_name: e.target.value })}
+                                      placeholder="홍길동"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs font-semibold">사서함 주소</Label>
+                                    <Input
+                                      value={newCustomer.mailbox_address}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, mailbox_address: e.target.value })}
+                                      placeholder="남인천 333-333"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs font-semibold">일반포인트</Label>
+                                    <Input
+                                      type="number"
+                                      value={newCustomer.normal_points}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, normal_points: parseInt(e.target.value) || 0 })}
+                                      placeholder="0"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs font-semibold">배팅포인트</Label>
+                                    <Input
+                                      type="number"
+                                      value={newCustomer.betting_points}
+                                      onChange={(e) => setNewCustomer({ ...newCustomer, betting_points: parseInt(e.target.value) || 0 })}
+                                      placeholder="0"
+                                      className="h-8 text-xs"
+                                      disabled={registeringCustomer}
+                                    />
+                                  </div>
+                                </div>
+
                                 <Button
                                   onClick={handleRegisterNewCustomer}
                                   disabled={registeringCustomer}
-                                  className="w-full h-7 bg-green-600 hover:bg-green-700 text-white text-xs"
+                                  className="w-full h-9 bg-green-600 hover:bg-green-700 text-white text-sm font-bold"
                                   size="sm"
                                 >
                                   {registeringCustomer ? (
                                     <>
-                                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                      등록 중...
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      등록 및 연결 중...
                                     </>
                                   ) : (
                                     <>
-                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      <CheckCircle2 className="w-4 h-4 mr-2" />
                                       회원 등록 및 연결
                                     </>
                                   )}
