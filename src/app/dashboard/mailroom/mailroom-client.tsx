@@ -1382,26 +1382,9 @@ export default function MailroomClient() {
                   onClick={() => handleLetterClick(letter)}
                 >
                 <CardContent className="p-6">
-                    <div className="flex gap-6">
-                      {/* Left: Checkbox + Image Preview */}
-                      <div className="flex flex-col items-center gap-2">
-                        {/* Checkbox - 더 크고 명확하게 */}
-                        <div
-                          className="cursor-pointer"
-                          onClick={(e) => toggleLetterSelection(letter, e)}
-                        >
-                          <div
-                            className={`w-10 h-10 rounded-lg border-3 flex items-center justify-center transition-all shadow-sm hover:shadow-md ${
-                              isSelected
-                                ? "bg-blue-600 border-blue-700 ring-2 ring-blue-300 dark:ring-blue-800"
-                                : "bg-white dark:bg-gray-700 border-gray-400 dark:border-gray-500 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-600"
-                            }`}
-                          >
-                            {isSelected && <CheckCircle2 className="w-7 h-7 text-white" />}
-                          </div>
-                        </div>
-
-                        {/* Image Preview */}
+                    <div className="flex gap-6 items-start">
+                      {/* Left: Image Preview Only */}
+                      <div className="flex-shrink-0">
                         <div className="relative">
                           <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden ring-2 ring-gray-200 dark:ring-gray-700">
                             <img
@@ -1422,8 +1405,9 @@ export default function MailroomClient() {
                         </div>
                       </div>
 
-                      {/* Right: Content */}
+                      {/* Center: Content */}
                       <div className="flex-1 space-y-3">
+                        {/* Content will be here */}
                         {/* 첫 줄: 상태 배지들과 날짜 */}
                         <div className="flex flex-wrap items-center gap-3">
                           {/* 편지 타입 */}
@@ -1474,6 +1458,24 @@ export default function MailroomClient() {
                               <span className="text-sm">{letter.ocr_confidence}%</span>
                             </div>
                           )}
+                        </div>
+                      </div>
+
+                      {/* Right: Checkbox */}
+                      <div className="flex-shrink-0 flex items-center">
+                        <div
+                          className="cursor-pointer"
+                          onClick={(e) => toggleLetterSelection(letter, e)}
+                        >
+                          <div
+                            className={`w-12 h-12 rounded-lg border-3 flex items-center justify-center transition-all shadow-md hover:shadow-lg ${
+                              isSelected
+                                ? "bg-blue-600 border-blue-700 ring-4 ring-blue-300 dark:ring-blue-800"
+                                : "bg-white dark:bg-gray-700 border-gray-400 dark:border-gray-500 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-600"
+                            }`}
+                          >
+                            {isSelected && <CheckCircle2 className="w-8 h-8 text-white" />}
+                          </div>
                         </div>
                       </div>
                     </div>

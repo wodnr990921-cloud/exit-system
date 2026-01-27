@@ -292,6 +292,30 @@ export default function MembersClient() {
     }
   }
 
+  // 미등록 회원 삭제
+  const handleDeleteUnregisteredCustomer = async (customerId: string, memberNumber: string, e: React.MouseEvent) => {
+    e.stopPropagation() // 행 클릭 이벤트 방지
+
+    if (!confirm(`정말로 미등록 회원 (${memberNumber})을(를) 삭제하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from("customers")
+        .delete()
+        .eq("id", customerId)
+
+      if (error) throw error
+
+      setSuccess(`미등록 회원 (${memberNumber})이(가) 삭제되었습니다.`)
+      await loadCustomers() // 목록 새로고침
+    } catch (error: any) {
+      console.error("회원 삭제 실패:", error)
+      setError(`회원 삭제 실패: ${error.message}`)
+    }
+  }
+
   const handleCustomerRowClick = async (customer: Customer) => {
     const isExpanded = expandedCustomers.has(customer.id)
     if (isExpanded) {
@@ -695,6 +719,7 @@ export default function MembersClient() {
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">수용번호</th>
                       <th className="text-right p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">일반 포인트</th>
                       <th className="text-right p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">배팅 포인트</th>
+                      <th className="text-center p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">액션</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -736,6 +761,24 @@ export default function MembersClient() {
                         </td>
                         <td className="p-4 text-right font-medium text-gray-900 dark:text-gray-50">
                           {formatNumber(customer.total_point_betting || customer.betting_points)}
+                        </td>
+                        <td className="p-4 text-center">
+                          {/* 미등록 회원인 경우에만 삭제 버튼 표시 */}
+                          {(customer.member_number.startsWith('TEMP') || 
+                            customer.member_number.startsWith('미등록') || 
+                            customer.member_number.startsWith('UNREG') ||
+                            customer.name === '미등록' ||
+                            customer.name.startsWith('미등록')) && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={(e) => handleDeleteUnregisteredCustomer(customer.id, customer.member_number, e)}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <UserX className="w-3 h-3 mr-1" />
+                              삭제
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}
