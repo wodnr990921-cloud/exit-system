@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MessageSquare, Trash2, CornerUpLeft, Home, UserPlus, X, CheckCircle2 } from "lucide-react"
+import { MessageSquare, Trash2, CornerUpLeft, Home, UserPlus, X, CheckCircle2, Search, BookOpen, ShoppingCart, Trophy, Plus, Minus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -792,73 +792,206 @@ export default function QAClient() {
               )}
             </div>
 
-            {/* 카테고리 선택 */}
-            <div className="space-y-2">
-              <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
-                <Label htmlFor="category" className="font-bold text-gray-900 dark:text-gray-100">📂 카테고리</Label>
-              </div>
-              <Select value={taskCategory} onValueChange={setTaskCategory}>
-                <SelectTrigger className="border-gray-300 dark:border-gray-700">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="문의">문의</SelectItem>
-                  <SelectItem value="입금">입금</SelectItem>
-                  <SelectItem value="출금">출금</SelectItem>
-                  <SelectItem value="환불">환불</SelectItem>
-                  <SelectItem value="상품">상품</SelectItem>
-                  <SelectItem value="배팅">배팅</SelectItem>
-                  <SelectItem value="기타">기타</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* 장바구니 탭 */}
+            <Tabs value={activeCartTab} onValueChange={setActiveCartTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="books" className="gap-1">
+                  <BookOpen className="w-4 h-4" />
+                  도서
+                </TabsTrigger>
+                <TabsTrigger value="purchase" className="gap-1">
+                  <ShoppingCart className="w-4 h-4" />
+                  구매
+                </TabsTrigger>
+                <TabsTrigger value="betting" className="gap-1">
+                  <Trophy className="w-4 h-4" />
+                  배팅
+                </TabsTrigger>
+                <TabsTrigger value="inquiry" className="gap-1">
+                  <MessageSquare className="w-4 h-4" />
+                  문의
+                </TabsTrigger>
+              </TabsList>
 
-            {/* 요청 내용 */}
-            <div className="space-y-2">
-              <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
-                <Label htmlFor="description" className="font-bold text-gray-900 dark:text-gray-100">📝 요청 내용</Label>
-              </div>
-              <Textarea
-                id="description"
-                placeholder="티켓 내용을 입력하세요"
-                value={taskDescription}
-                onChange={(e) => setTaskDescription(e.target.value)}
-                className="min-h-[120px] border-gray-300 dark:border-gray-700"
-              />
-            </div>
+              {/* 도서 탭 */}
+              <TabsContent value="books" className="space-y-3">
+                <div className="space-y-2">
+                  <Label>도서 검색</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="제목, 저자, 출판사로 검색"
+                      value={bookSearch}
+                      onChange={(e) => setBookSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && searchBooks()}
+                    />
+                    <Button onClick={searchBooks} disabled={searchingBooks}>
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
 
-            {/* 금액 */}
-            <div className="space-y-2">
-              <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
-                <Label htmlFor="amount" className="font-bold text-gray-900 dark:text-gray-100">💰 금액 (선택)</Label>
-              </div>
-              <Input
-                id="amount"
-                type="number"
-                placeholder="0"
-                value={taskAmount}
-                onChange={(e) => setTaskAmount(e.target.value)}
-                className="border-gray-300 dark:border-gray-700"
-              />
-            </div>
+                {/* 검색 결과 */}
+                {books.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto space-y-1 border rounded p-2">
+                    {books.map((book) => (
+                      <div
+                        key={book.id}
+                        onClick={() => toggleBookSelection(book)}
+                        className={`p-2 rounded cursor-pointer text-sm ${
+                          selectedBooks.some(b => b.id === book.id)
+                            ? 'bg-blue-100 dark:bg-blue-900'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <div className="font-semibold">{book.title}</div>
+                        <div className="text-xs text-gray-500">{book.author} | {book.publisher} | {book.price}원</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 선택된 도서 */}
+                {selectedBooks.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>선택된 도서 ({selectedBooks.length}권)</Label>
+                    <div className="space-y-1">
+                      {selectedBooks.map((book) => (
+                        <div key={book.id} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded text-sm">
+                          <span>{book.title} - {book.price}원</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => toggleBookSelection(book)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* 구매 탭 */}
+              <TabsContent value="purchase" className="space-y-3">
+                <Label>구매 항목</Label>
+                {purchaseItems.map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="상품명"
+                      value={item.description}
+                      onChange={(e) => updatePurchaseItem(index, "description", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="금액"
+                      value={item.amount || ""}
+                      onChange={(e) => updatePurchaseItem(index, "amount", parseInt(e.target.value) || 0)}
+                      className="w-32"
+                    />
+                    {purchaseItems.length > 1 && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => removePurchaseItem(index)}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button onClick={addPurchaseItem} variant="outline" className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  항목 추가
+                </Button>
+              </TabsContent>
+
+              {/* 배팅 탭 */}
+              <TabsContent value="betting" className="space-y-3">
+                <div className="space-y-2">
+                  <Label>경기 ID</Label>
+                  <Input
+                    placeholder="경기 ID"
+                    value={bettingData.match_id}
+                    onChange={(e) => setBettingData({ ...bettingData, match_id: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>경기명</Label>
+                  <Input
+                    placeholder="예: 맨시티 vs 첼시"
+                    value={bettingData.match_name}
+                    onChange={(e) => setBettingData({ ...bettingData, match_name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label>배팅 선택</Label>
+                    <Input
+                      placeholder="예: 홈승"
+                      value={bettingData.betting_choice}
+                      onChange={(e) => setBettingData({ ...bettingData, betting_choice: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>배당률</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="1.85"
+                      value={bettingData.betting_odds || ""}
+                      onChange={(e) => setBettingData({ ...bettingData, betting_odds: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>배팅 금액</Label>
+                  <Input
+                    type="number"
+                    placeholder="10000"
+                    value={bettingData.bet_amount || ""}
+                    onChange={(e) => setBettingData({ ...bettingData, bet_amount: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* 문의 탭 */}
+              <TabsContent value="inquiry" className="space-y-3">
+                <Label>기타 문의 내용</Label>
+                <Textarea
+                  placeholder="문의 내용을 입력하세요"
+                  value={otherInquiry}
+                  onChange={(e) => setOtherInquiry(e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCloseDialog}
-              disabled={creating}
-              className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium"
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleCreateTicket}
-              disabled={!selectedCustomer || !taskDescription.trim() || creating}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
-            >
-              {creating ? "생성 중..." : "티켓 생성"}
-            </Button>
+          <DialogFooter className="flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              📦 장바구니: 도서 {selectedBooks.length}권 | 구매 {purchaseItems.filter(i => i.description.trim()).length}건 | 
+              배팅 {bettingData.match_id ? 1 : 0}건 | 문의 {otherInquiry.trim() ? 1 : 0}건
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCloseDialog}
+                disabled={creating}
+                className="border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-medium"
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleCreateTicket}
+                disabled={!selectedCustomer || creating}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              >
+                {creating ? "생성 중..." : "🛒 티켓 생성"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
