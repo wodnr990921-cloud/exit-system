@@ -376,6 +376,17 @@ export default function IntakeClient() {
     }
 
     setIsTaskDialogOpen(true)
+    
+    // Reset customer form states
+    setShowNewCustomerForm(false)
+    setShowCustomerSearchForm(false)
+    setCustomerSearchQuery("")
+    setSearchedCustomers([])
+    setNewCustomerName("")
+    setNewCustomerMemberNumber("")
+    setNewCustomerPhone("")
+    setNewCustomerAddress("")
+    
     await loadTaskComments(task.id)
     await loadSavedReplies(task.id)
   }
@@ -1319,14 +1330,27 @@ export default function IntakeClient() {
                       <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
                         <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
                       </div>
-                      {selectedTask.customer ? (
+                      {(() => {
+                        console.log('🔍 Customer check:', {
+                          hasCustomer: !!selectedTask.customer,
+                          customer: selectedTask.customer
+                        })
+                        return selectedTask.customer
+                      })() ? (
                         <p className="mt-1 text-sm text-gray-900 dark:text-gray-50">
                           {selectedTask.customer.member_number} - {selectedTask.customer.name}
                         </p>
                       ) : (
                         <div className="mt-1 space-y-2">
                           <p className="text-sm text-red-600 dark:text-red-400 font-semibold">⚠️ 미등록 회원</p>
-                          {!showNewCustomerForm && !showCustomerSearchForm && (
+                          {(() => {
+                            console.log('🔍 Button visibility check:', {
+                              showNewCustomerForm,
+                              showCustomerSearchForm,
+                              shouldShowButtons: !showNewCustomerForm && !showCustomerSearchForm
+                            })
+                            return !showNewCustomerForm && !showCustomerSearchForm
+                          })() && (
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
