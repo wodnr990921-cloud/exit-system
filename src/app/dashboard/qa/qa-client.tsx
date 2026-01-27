@@ -84,6 +84,35 @@ export default function QAClient() {
   const [selectedBooks, setSelectedBooks] = useState<any[]>([])
   const [purchaseItems, setPurchaseItems] = useState<Array<{description: string, amount: number}>>([{description: "", amount: 0}])
   const [otherInquiry, setOtherInquiry] = useState("")
+  const [bettingData, setBettingData] = useState({
+    match_id: "",
+    match_name: "",
+    betting_choice: "",
+    betting_odds: 0,
+    bet_amount: 0
+  })
+
+  // 회원번호 자동 생성
+  const generateMemberNumber = async (): Promise<string> => {
+    const today = new Date()
+    const datePrefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
+    
+    const { data: existingMembers } = await supabase
+      .from("customers")
+      .select("member_number")
+      .like("member_number", `${datePrefix}%`)
+      .order("member_number", { ascending: false })
+      .limit(1)
+
+    if (existingMembers && existingMembers.length > 0) {
+      const lastNumber = existingMembers[0].member_number
+      const lastSequence = parseInt(lastNumber.slice(-3)) || 0
+      const newSequence = lastSequence + 1
+      return `${datePrefix}${String(newSequence).padStart(3, "0")}`
+    } else {
+      return `${datePrefix}001`
+    }
+  }
 
   // 회원 검색
   const handleSearchCustomer = async (query: string) => {
@@ -110,41 +139,116 @@ export default function QAClient() {
     }
   }
 
-  // 신규 회원 등록
+  // 도서 검색
+  const searchBooks = async () => {
+    if (!bookSearch.trim()) return
+    
+    setSearchingBooks(true)
+    try {
+      const { data, error } = await supabase
+        .from("books")
+        .select("*")
+        .or(`title.ilike.%${bookSearch}%,author.ilike.%${bookSearch}%,publisher.ilike.%${bookSearch}%`)
+        .limit(20)
+
+      if (error) throw error
+      setBooks(data || [])
+    } catch (error: any) {
+      console.error("도서 검색 오류:", error)
+      setError("도서 검색 중 오류가 발생했습니다.")
+    } finally {
+      setSearchingBooks(false)
+    }
+  }
+
+  // 도서 선택/해제
+  const toggleBookSelection = (book: any) => {
+    const isSelected = selectedBooks.some(b => b.id === book.id)
+    if (isSelected) {
+      setSelectedBooks(selectedBooks.filter(b => b.id !== book.id))
+    } else {
+      setSelectedBooks([...selectedBooks, book])
+    }
+  }
+
+  // 구매 항목 추가
+  const addPurchaseItem = () => {
+    setPurchaseItems([...purchaseItems, { description: "", amount: 0 }])
+  }
+
+  // 구매 항목 제거
+  const removePurchaseItem = (index: number) => {
+    setPurchaseItems(purchaseItems.filter((_, i) => i !== index))
+  }
+
+  // 구매 항목 변경
+  const updatePurchaseItem = (index: number, field: "description" | "amount", value: string | number) => {
+    const updated = [...purchaseItems]
+    updated[index] = { ...updated[index], [field]: value }
+    setPurchaseItems(updated)
+  }
+
+  // 신규 회원 등록 (개선 버전)
   const handleRegisterNewCustomer = async () => {
-    if (!newCustomerName.trim() || !newCustomerMemberNumber.trim()) {
-      setError("이름과 회원번호는 필수입니다.")
+    // 필수 필드 검증
+    if (!newCustomer.name.trim()) {
+      setError("이름은 필수입니다.")
+      return
+    }
+
+    if (!newCustomer.institution.trim()) {
+      setError("수용기관은 필수입니다.")
+      return
+    }
+
+    if (!newCustomer.prison_number.trim()) {
+      setError("수용번호는 필수입니다.")
       return
     }
 
     try {
-      const { data: newCustomer, error: customerError } = await supabase
+      // 회원번호 자동 생성
+      const autoMemberNumber = await generateMemberNumber()
+
+      const customerData = {
+        member_number: autoMemberNumber,
+        name: newCustomer.name.trim(),
+        institution: newCustomer.institution.trim(),
+        prison_number: newCustomer.prison_number.trim(),
+        depositor_name: newCustomer.depositor_name.trim() || null,
+        mailbox_address: newCustomer.mailbox_address.trim() || null,
+        normal_points: 0,
+        betting_points: 0,
+        total_deposit: 0,
+        total_usage: 0,
+        total_betting: 0,
+      }
+
+      const { data: createdCustomer, error: customerError } = await supabase
         .from("customers")
-        .insert({
-          name: newCustomerName.trim(),
-          member_number: newCustomerMemberNumber.trim(),
-          phone: newCustomerPhone.trim() || null,
-          address: newCustomerAddress.trim() || null,
-        })
+        .insert([customerData])
         .select()
         .single()
 
       if (customerError) throw customerError
 
       setSelectedCustomer({
-        id: newCustomer.id,
-        name: newCustomer.name,
-        member_number: newCustomer.member_number,
+        id: createdCustomer.id,
+        name: createdCustomer.name,
+        member_number: createdCustomer.member_number,
       })
 
       setShowNewCustomerForm(false)
-      setNewCustomerName("")
-      setNewCustomerMemberNumber("")
-      setNewCustomerPhone("")
-      setNewCustomerAddress("")
+      setNewCustomer({
+        name: "",
+        institution: "",
+        prison_number: "",
+        depositor_name: "",
+        mailbox_address: "",
+      })
       setSearchQuery("")
 
-      setSuccess(`${newCustomer.name} (${newCustomer.member_number}) 회원이 등록되었습니다.`)
+      setSuccess(`${createdCustomer.name} (${autoMemberNumber}) 회원이 등록되었습니다.`)
       setTimeout(() => setSuccess(null), 3000)
     } catch (error: any) {
       console.error("Register customer error:", error)
@@ -152,24 +256,36 @@ export default function QAClient() {
     }
   }
 
-  // 신규 티켓 생성
+  // 신규 티켓 생성 (장바구니 기능 통합)
   const handleCreateTicket = async () => {
     if (!selectedCustomer) {
       setError("회원을 선택해주세요.")
       return
     }
 
-    if (!taskDescription.trim()) {
-      setError("요청 내용을 입력해주세요.")
+    // 장바구니에 아무것도 없으면 에러
+    const hasBooks = selectedBooks.length > 0
+    const hasPurchase = purchaseItems.some(item => item.description.trim() && item.amount > 0)
+    const hasBetting = bettingData.match_id && bettingData.bet_amount > 0
+    const hasInquiry = otherInquiry.trim()
+    const hasBasicInquiry = taskDescription.trim()
+
+    if (!hasBooks && !hasPurchase && !hasBetting && !hasInquiry && !hasBasicInquiry) {
+      setError("최소 하나의 항목을 추가해주세요.")
       return
     }
-
-    const amount = parseFloat(taskAmount) || 0
 
     setCreating(true)
     setError(null)
 
     try {
+      // 총 금액 계산
+      const booksTotal = selectedBooks.reduce((sum, book) => sum + (book.price || 0), 0)
+      const purchaseTotal = purchaseItems.reduce((sum, item) => sum + (item.amount || 0), 0)
+      const bettingTotal = bettingData.bet_amount || 0
+      const basicAmount = parseFloat(taskAmount) || 0
+      const totalAmount = booksTotal + purchaseTotal + bettingTotal + basicAmount
+
       // 1. Task 생성
       const { data: taskData, error: taskError } = await supabase
         .from("tasks")
@@ -177,26 +293,87 @@ export default function QAClient() {
           customer_id: selectedCustomer.id,
           member_id: selectedCustomer.id,
           status: "pending",
-          total_amount: amount,
-          title: `[문의답변] ${taskCategory} - ${selectedCustomer.name}`,
+          total_amount: totalAmount,
+          title: `[통합주문] ${selectedCustomer.name}`,
+          description: `도서:${selectedBooks.length}, 구매:${purchaseItems.filter(i => i.description.trim()).length}, 배팅:${hasBetting ? 1 : 0}, 문의:${(hasInquiry || hasBasicInquiry) ? 1 : 0}`,
         })
         .select()
         .single()
 
       if (taskError) throw taskError
 
-      // 2. Task Item 생성
-      const { error: itemError } = await supabase.from("task_items").insert({
-        task_id: taskData.id,
-        category: taskCategory,
-        description: taskDescription.trim(),
-        amount: amount,
-        status: "pending",
-      })
+      const taskItems: any[] = []
 
-      if (itemError) throw itemError
+      // 2. 도서 항목 추가 (category: "book" → 발주)
+      for (const book of selectedBooks) {
+        taskItems.push({
+          task_id: taskData.id,
+          category: "book",
+          description: `${book.title} - ${book.author || ''} (${book.publisher || ''})`,
+          amount: book.price || 0,
+          status: "pending",
+        })
+      }
 
-      setSuccess("티켓이 생성되었습니다.")
+      // 3. 구매 항목 추가 (category: "product" → 발주)
+      for (const item of purchaseItems) {
+        if (item.description.trim() && item.amount > 0) {
+          taskItems.push({
+            task_id: taskData.id,
+            category: "product",
+            description: item.description.trim(),
+            amount: item.amount,
+            status: "pending",
+          })
+        }
+      }
+
+      // 4. 배팅 항목 추가 (category: "betting" → 배팅 업무)
+      if (hasBetting) {
+        taskItems.push({
+          task_id: taskData.id,
+          category: "betting",
+          description: `${bettingData.match_name} - ${bettingData.betting_choice} (배당: ${bettingData.betting_odds})`,
+          amount: bettingData.bet_amount,
+          status: "pending",
+          match_id: bettingData.match_id,
+          betting_choice: bettingData.betting_choice,
+          betting_odds: bettingData.betting_odds,
+        })
+      }
+
+      // 5. 기타 문의 항목 추가 (category: "inquiry" → 문의답변)
+      if (hasInquiry) {
+        taskItems.push({
+          task_id: taskData.id,
+          category: "inquiry",
+          description: otherInquiry.trim(),
+          amount: 0,
+          status: "pending",
+        })
+      }
+
+      // 6. 기본 문의 항목 추가 (하위 호환성)
+      if (hasBasicInquiry) {
+        taskItems.push({
+          task_id: taskData.id,
+          category: taskCategory || "inquiry",
+          description: taskDescription.trim(),
+          amount: basicAmount,
+          status: "pending",
+        })
+      }
+
+      // Task Items 일괄 생성
+      if (taskItems.length > 0) {
+        const { error: itemError } = await supabase
+          .from("task_items")
+          .insert(taskItems)
+
+        if (itemError) throw itemError
+      }
+
+      setSuccess("✅ 티켓이 생성되었습니다! 각 항목이 적절한 업무 탭으로 자동 분류되었습니다.")
       handleCloseDialog()
 
       setTimeout(() => {
@@ -211,7 +388,7 @@ export default function QAClient() {
     }
   }
 
-  // Dialog 닫기
+  // Dialog 닫기 (장바구니 초기화 포함)
   const handleCloseDialog = () => {
     setShowCreateDialog(false)
     setSelectedCustomer(null)
@@ -222,10 +399,28 @@ export default function QAClient() {
     setTaskAmount("")
     setError(null)
     setShowNewCustomerForm(false)
-    setNewCustomerName("")
-    setNewCustomerMemberNumber("")
-    setNewCustomerPhone("")
-    setNewCustomerAddress("")
+    setNewCustomer({
+      name: "",
+      institution: "",
+      prison_number: "",
+      depositor_name: "",
+      mailbox_address: "",
+    })
+    // 장바구니 초기화
+    setActiveCartTab("books")
+    setBookSearch("")
+    setBooks([])
+    setSearchingBooks(false)
+    setSelectedBooks([])
+    setPurchaseItems([{description: "", amount: 0}])
+    setOtherInquiry("")
+    setBettingData({
+      match_id: "",
+      match_name: "",
+      betting_choice: "",
+      betting_odds: 0,
+      bet_amount: 0
+    })
   }
 
   // 답변 일괄 출력
