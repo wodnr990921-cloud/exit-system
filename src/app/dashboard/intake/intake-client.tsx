@@ -409,8 +409,13 @@ export default function IntakeClient() {
         .order("created_at", { ascending: false })
 
       if (error) throw error
-      console.log("✅ 저장된 답변:", data?.length || 0, "개")
-      setSavedReplies(data || [])
+      
+      // Filter out OCR letter content (only show actual replies)
+      // OCR content from mailroom is now stored as "letter" category
+      const actualReplies = data || []
+      
+      console.log("✅ 저장된 답변:", actualReplies.length, "개")
+      setSavedReplies(actualReplies)
     } catch (error: any) {
       console.error("❌ 답변 로딩 오류:", error)
       setSavedReplies([])

@@ -855,12 +855,12 @@ export default function MailroomClient() {
         if (combinedOcrTexts) {
           taskItems.push({
             task_id: taskId,
-            category: "inquiry",
+            category: "letter",  // OCR 내용은 "letter" 카테고리로 저장
             description: combinedOcrTexts,
             amount: 0,
             status: "pending",
           })
-          console.log(`✅ 편지 내용 task_item 생성됨 (카테고리: 문의)`)
+          console.log(`✅ 편지 내용 task_item 생성됨 (카테고리: letter)`)
         }
       }
 
@@ -1383,40 +1383,43 @@ export default function MailroomClient() {
                 >
                 <CardContent className="p-6">
                     <div className="flex gap-6">
-                      {/* Left: Image Preview */}
-                      <div className="flex-shrink-0 relative">
-                        {/* Checkbox */}
+                      {/* Left: Checkbox + Image Preview */}
+                      <div className="flex flex-col items-center gap-2">
+                        {/* Checkbox - 더 크고 명확하게 */}
                         <div
-                          className="absolute -top-2 -left-2 z-10"
+                          className="cursor-pointer"
                           onClick={(e) => toggleLetterSelection(letter, e)}
                         >
                           <div
-                            className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                            className={`w-10 h-10 rounded-lg border-3 flex items-center justify-center transition-all shadow-sm hover:shadow-md ${
                               isSelected
-                                ? "bg-blue-600 border-blue-600"
-                                : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:border-blue-500"
+                                ? "bg-blue-600 border-blue-700 ring-2 ring-blue-300 dark:ring-blue-800"
+                                : "bg-white dark:bg-gray-700 border-gray-400 dark:border-gray-500 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-600"
                             }`}
                           >
-                            {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                            {isSelected && <CheckCircle2 className="w-7 h-7 text-white" />}
                           </div>
                         </div>
 
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                          <img
-                            src={letter.file_url}
-                            alt="Letter"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+                        {/* Image Preview */}
+                        <div className="relative">
+                          <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden ring-2 ring-gray-200 dark:ring-gray-700">
+                            <img
+                              src={letter.file_url}
+                              alt="Letter"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
 
-                        {/* Delete Button */}
-                        <button
-                          onClick={(e) => deleteLetter(letter.id, e)}
-                          className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg z-10"
-                          title="편지 삭제"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => deleteLetter(letter.id, e)}
+                            className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg z-10"
+                            title="편지 삭제"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Right: Content */}
