@@ -514,10 +514,13 @@ export default function IntakeClient() {
 
   // 신규 회원 등록 (회원 관리 탭과 동일한 로직)
   const handleRegisterNewCustomer = async () => {
-    console.log("🆕 [신규 회원 등록] 시작")
+    console.log("🆕🆕🆕 [신규 회원 등록 버튼 클릭됨] 🆕🆕🆕")
+    console.log("현재 입력값:", newCustomer)
+    console.log("선택된 티켓:", selectedTask?.id, selectedTask?.ticket_no)
     
     // 필수 필드 검증
     if (!newCustomer.name.trim()) {
+      console.warn("❌ 검증 실패: 이름 누락")
       toast({
         variant: "destructive",
         title: "오류",
@@ -527,6 +530,7 @@ export default function IntakeClient() {
     }
 
     if (!newCustomer.institution.trim()) {
+      console.warn("❌ 검증 실패: 수용기관 누락")
       toast({
         variant: "destructive",
         title: "오류",
@@ -536,6 +540,7 @@ export default function IntakeClient() {
     }
 
     if (!newCustomer.prison_number.trim()) {
+      console.warn("❌ 검증 실패: 수용번호 누락")
       toast({
         variant: "destructive",
         title: "오류",
@@ -554,11 +559,14 @@ export default function IntakeClient() {
       return
     }
 
+    console.log("✅ 검증 통과! 회원 등록 시작...")
     setRegisteringCustomer(true)
+    
     try {
       // 회원번호 자동 생성
+      console.log("1️⃣ 회원번호 생성 중...")
       const autoMemberNumber = await generateMemberNumber()
-      console.log("📝 회원 정보 저장 중...", { autoMemberNumber, ...newCustomer })
+      console.log("✅ 회원번호 생성 완료:", autoMemberNumber)
 
       const customerData = {
         member_number: autoMemberNumber,
@@ -573,6 +581,7 @@ export default function IntakeClient() {
         total_usage: 0,
         total_betting: 0,
       }
+      console.log("2️⃣ Supabase에 회원 정보 저장 중...", customerData)
 
       const { data: createdCustomer, error: customerError } = await supabase
         .from("customers")
@@ -585,8 +594,8 @@ export default function IntakeClient() {
         throw customerError
       }
 
-      console.log("✅ 회원 저장 성공:", createdCustomer)
-      console.log("🔗 티켓에 회원 연결 중...", {
+      console.log("✅✅ 회원 저장 성공!", createdCustomer)
+      console.log("3️⃣ 티켓에 회원 연결 중...", {
         taskId: selectedTask.id,
         customerId: createdCustomer.id
       })
@@ -605,13 +614,10 @@ export default function IntakeClient() {
         throw updateError
       }
 
-      console.log("✅ 티켓 업데이트 성공")
-      console.log("🔄 티켓 정보 새로고침 중...")
-
-      // Reload task
-      await handleTaskClick(selectedTask)
-
-      // Reset form
+      console.log("✅✅ 티켓 업데이트 성공!")
+      console.log("4️⃣ 폼 닫기 및 초기화...")
+      
+      // Reset form first
       setShowNewCustomerForm(false)
       setNewCustomer({
         name: "",
@@ -621,21 +627,42 @@ export default function IntakeClient() {
         mailbox_address: "",
       })
 
-      console.log("🎉 [신규 회원 등록] 완료!")
+      console.log("5️⃣ 티켓 정보 새로고침 중...")
+      // Reload task
+      await handleTaskClick(selectedTask)
 
+      console.log("🎉🎉🎉 [신규 회원 등록 완료!!!] 🎉🎉🎉")
+
+      // 성공 토스트
       toast({
-        title: "✅ 회원 등록 완료",
-        description: `${createdCustomer.name} (${autoMemberNumber}) 회원이 등록되고 티켓에 연결되었습니다.`,
+        title: "✅ 신규 회원 등록이 완료되었습니다!",
+        description: `${createdCustomer.name} (${autoMemberNumber}) 회원이 등록되고 티켓에 자동으로 지정되었습니다.`,
       })
+
+      // 추가 알림 (확실한 피드백)
+      setTimeout(() => {
+        alert(`✅ 신규 회원 등록이 완료되었습니다!\n\n회원명: ${createdCustomer.name}\n회원번호: ${autoMemberNumber}\n\n티켓에 자동으로 지정되었습니다.`)
+      }, 500)
+
     } catch (error: any) {
-      console.error("❌ [신규 회원 등록] 실패:", error)
+      console.error("❌❌❌ [신규 회원 등록 실패!!!]", error)
+      console.error("에러 상세:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      
       toast({
         variant: "destructive",
         title: "❌ 회원 등록 실패",
         description: error.message || "회원 등록 중 오류가 발생했습니다. F12 콘솔을 확인하세요.",
       })
+      
+      alert(`❌ 회원 등록 실패\n\n${error.message || "오류가 발생했습니다."}\n\nF12를 눌러 콘솔을 확인하세요.`)
     } finally {
       setRegisteringCustomer(false)
+      console.log("🔄 등록 프로세스 종료")
     }
   }
 
