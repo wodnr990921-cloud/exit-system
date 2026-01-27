@@ -727,6 +727,7 @@ export default function QAClient() {
                       ℹ️ 회원번호는 자동으로 생성됩니다 (YYYYMMDD001)
                     </div>
                     
+                    {/* 회원 정보 입력 폼 */}
                     <div>
                       <Label className="text-sm font-semibold">이름 *</Label>
                       <Input
