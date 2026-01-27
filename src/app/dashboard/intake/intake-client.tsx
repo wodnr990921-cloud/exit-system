@@ -1369,11 +1369,17 @@ export default function IntakeClient() {
                         <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
                       </div>
                       {(() => {
+                        const hasValidCustomer = selectedTask.customer && 
+                                                 selectedTask.customer.name && 
+                                                 selectedTask.customer.member_number
                         console.log('🔍 Customer check:', {
                           hasCustomer: !!selectedTask.customer,
-                          customer: selectedTask.customer
+                          customer: selectedTask.customer,
+                          hasValidCustomer,
+                          name: selectedTask.customer?.name,
+                          memberNumber: selectedTask.customer?.member_number
                         })
-                        return selectedTask.customer
+                        return hasValidCustomer
                       })() ? (
                         <p className="mt-1 text-sm text-gray-900 dark:text-gray-50">
                           {selectedTask.customer.member_number} - {selectedTask.customer.name}
@@ -1381,15 +1387,9 @@ export default function IntakeClient() {
                       ) : (
                         <div className="mt-1 space-y-2">
                           <p className="text-sm text-red-600 dark:text-red-400 font-semibold">⚠️ 미등록 회원</p>
-                          {(() => {
-                            console.log('🔍 Button visibility check:', {
-                              showNewCustomerForm,
-                              showCustomerSearchForm,
-                              shouldShowButtons: !showNewCustomerForm && !showCustomerSearchForm
-                            })
-                            return !showNewCustomerForm && !showCustomerSearchForm
-                          })() && (
-                            <div className="flex gap-2">
+                          {/* Debug: showNewCustomerForm={String(showNewCustomerForm)}, showCustomerSearchForm={String(showCustomerSearchForm)} */}
+                          {!showNewCustomerForm && !showCustomerSearchForm && (
+                            <div className="flex gap-2" style={{ display: 'flex' }}>
                               <Button
                                 size="sm"
                                 variant="outline"
