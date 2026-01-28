@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
+import { getStatusLabel, getStatusColor, canEdit, canDelete } from "@/lib/ticket-status"
+import { hasMinimumRole } from "@/lib/permissions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -165,6 +167,12 @@ export default function IntakeClient() {
   const [selectedWorkType, setSelectedWorkType] = useState<string>("")
   const [savingWorkType, setSavingWorkType] = useState(false)
 
+  // 담당자 배정
+  const [assigningTo, setAssigningTo] = useState(false)
+  const [selectedAssignee, setSelectedAssignee] = useState<string>("")
+  const [allUsers, setAllUsers] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
   // 현재 사용자 및 티켓 삭제
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -181,6 +189,7 @@ export default function IntakeClient() {
   useEffect(() => {
     loadCurrentUser()
     loadAllTasks()
+    loadAllUsers()
   }, [])
 
   useEffect(() => {
@@ -214,6 +223,81 @@ export default function IntakeClient() {
       }
     } catch (error) {
       console.error("Error loading current user:", error)
+    }
+  }
+
+  const loadAllUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, name, username, role")
+        .eq("is_approved", true)
+        .order("name", { ascending: true })
+
+      if (error) throw error
+      setAllUsers(data || [])
+    } catch (error: any) {
+      console.error("Error loading users:", error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleAssignTicket = async () => {
+    if (!selectedTask || !selectedAssignee) {
+      toast({
+        title: "오류",
+        description: "담당자를 선택하세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAssigningTo(true)
+    try {
+      const response = await fetch(`/api/tickets/${selectedTask.id}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignee_id: selectedAssignee }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "담당자 배정에 실패했습니다.")
+      }
+
+      toast({
+        title: "성공",
+        description: result.message,
+      })
+
+      // 티켓 목록 새로고침
+      await loadAllTasks()
+
+      // 선택된 티켓 업데이트
+      if (selectedTask) {
+        const assignee = allUsers.find(u => u.id === selectedAssignee)
+        setSelectedTask({
+          ...selectedTask,
+          assigned_to_user: assignee ? { name: assignee.name, username: assignee.username } : null,
+          status: selectedTask.status === "received" || selectedTask.status === "pending" || selectedTask.status === "draft"
+            ? "assigned"
+            : selectedTask.status,
+        })
+      }
+
+      setSelectedAssignee("")
+    } catch (error: any) {
+      console.error("Error assigning ticket:", error)
+      toast({
+        title: "오류",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setAssigningTo(false)
     }
   }
 
@@ -1174,32 +1258,6 @@ export default function IntakeClient() {
     return id.substring(0, 8).toUpperCase()
   }
 
-  const getStatusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-      pending: "⏳ 대기중",
-      draft: "📝 작성중",
-      assigned: "📋 접수완료",
-      in_progress: "⚙️ 처리중",
-      completed: "✅ 완료",
-      pending_review: "🔍 검토중",
-      closed: "🔒 마감",
-    }
-    return labels[status] || `❓ ${status}`
-  }
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-2 border-gray-300 dark:border-gray-600",
-      draft: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-2 border-slate-300 dark:border-slate-600",
-      assigned: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100 border-2 border-blue-400 dark:border-blue-600",
-      in_progress: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100 border-2 border-amber-400 dark:border-amber-600 animate-pulse",
-      completed: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100 border-2 border-emerald-400 dark:border-emerald-600",
-      pending_review: "bg-purple-100 text-purple-900 dark:bg-purple-900 dark:text-purple-100 border-2 border-purple-400 dark:border-purple-600",
-      closed: "bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100 border-2 border-red-400 dark:border-red-600",
-    }
-    return colors[status] || "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border-2 border-gray-300"
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -1628,6 +1686,62 @@ export default function IntakeClient() {
                           </Button>
                         </div>
                       )}
+                    </div>
+
+                    {/* 담당자 배정 */}
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👨‍💼 담당자</Label>
+                      </div>
+                      <div className="mt-1 space-y-2">
+                        {selectedTask.assigned_to_user ? (
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                              {selectedTask.assigned_to_user.name || selectedTask.assigned_to_user.username}
+                            </p>
+                            {currentUser && hasMinimumRole(currentUser.role, "operator") && (
+                              <Button
+                                onClick={() => setSelectedAssignee(selectedTask.assigned_to_user?.username || "")}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs"
+                              >
+                                재배정
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">미배정</p>
+                        )}
+
+                        {currentUser && hasMinimumRole(currentUser.role, "operator") && (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={selectedAssignee}
+                              onValueChange={setSelectedAssignee}
+                            >
+                              <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="담당자 선택" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allUsers.map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.name || user.username} ({user.role})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              onClick={handleAssignTicket}
+                              disabled={!selectedAssignee || assigningTo}
+                              size="sm"
+                              className="bg-purple-600 hover:bg-purple-700"
+                            >
+                              {assigningTo ? "배정 중..." : "배정"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div>

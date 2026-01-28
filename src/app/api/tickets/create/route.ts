@@ -126,7 +126,7 @@ ${itemsText}
           total_amount: total_amount,
           work_type: work_type, // 업무 유형 자동 설정
           ai_summary: ai_summary || null,
-          status: "draft",
+          status: "received", // 접수 상태로 시작
           title: `티켓 ${ticket_no}`,
           description: ai_summary || "",
         },
