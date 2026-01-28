@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { usePermissions } from "@/lib/hooks/usePermissions"
+import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +48,7 @@ interface GroupedConfigs {
 }
 
 export default function SettingsPage() {
+  const supabase = createClient()
   const { role, loading: permissionsLoading, hasPermission } = usePermissions()
   const [configs, setConfigs] = useState<SystemConfig[]>([])
   const [groupedConfigs, setGroupedConfigs] = useState<GroupedConfigs>({})
@@ -56,6 +58,17 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [editedValues, setEditedValues] = useState<{ [key: string]: string }>({})
   const [activeTab, setActiveTab] = useState("config")
+  const [userId, setUserId] = useState<string>("")
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserId(user.id)
+      }
+    }
+    loadUser()
+  }, [])
 
   useEffect(() => {
     if (!permissionsLoading) {
@@ -300,7 +313,7 @@ export default function SettingsPage() {
 
         <TabsContent value="audit" className="space-y-6">
           <Card>
-            <AuditLogsContent />
+            {userId && role && <AuditLogsContent userRole={role} userId={userId} />}
           </Card>
         </TabsContent>
 

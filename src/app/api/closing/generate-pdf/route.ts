@@ -95,7 +95,13 @@ export async function POST(request: NextRequest) {
       .order("updated_at", { ascending: true })
 
     if (!pendingError && pendingWithReply) {
-      tasks.push(...pendingWithReply)
+      // Add closed_at and closed_by fields for pending tasks
+      const mappedPending = pendingWithReply.map((task: any) => ({
+        ...task,
+        closed_at: null,
+        closed_by: null
+      }))
+      tasks.push(...mappedPending)
     }
 
     if (!tasks || tasks.length === 0) {
