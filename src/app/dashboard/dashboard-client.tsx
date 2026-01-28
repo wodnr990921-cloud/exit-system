@@ -33,7 +33,6 @@ import {
 import NoticePopup from "@/components/notice-popup"
 import WorkReportWidget from "./work-report-widget"
 import UnprocessedTicketsAlert from "@/components/unprocessed-tickets-alert"
-import MonthlyPanel from "./panels/monthly-panel"
 import DailyPanel from "./panels/daily-panel"
 import StaffTaskPanel from "./panels/staff-task-panel"
 import AdminApprovalPanel from "./panels/admin-approval-panel"
@@ -805,18 +804,15 @@ export default function DashboardClient() {
             <UnprocessedTicketsAlert userRole={currentUser.role} userId={currentUser.id} />
           )}
 
-          {/* 4-Panel Dashboard Layout */}
+          {/* 3-Panel Dashboard Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Panel 1: Monthly Summary - Admin only */}
-            <MonthlyPanel />
-
-            {/* Panel 2: Daily Report - Admin only */}
+            {/* Panel 1: Daily Report - Admin only */}
             <DailyPanel />
 
-            {/* Panel 3: Staff Task Panel - All users */}
+            {/* Panel 2: Staff Task Panel - All users */}
             <StaffTaskPanel userId={currentUser?.id} role={currentUser?.role} />
 
-            {/* Panel 4: Admin Approval Panel - Admin only */}
+            {/* Panel 3: Admin Approval Panel - Admin only */}
             <AdminApprovalPanel />
           </div>
 

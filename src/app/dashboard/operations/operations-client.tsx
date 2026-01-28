@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Lock, Briefcase, DollarSign, FileText, CalendarDays, Moon, Package, Home } from "lucide-react"
+import { Lock, Briefcase, DollarSign, FileText, CalendarDays, Moon, Package, Home, TrendingUp } from "lucide-react"
 import dynamic from "next/dynamic"
 
 // 동적 임포트 (기존 컴포넌트 재사용)
@@ -37,10 +37,15 @@ const InventoryContent = dynamic(() => import("../inventory/inventory-client"), 
   ssr: false,
 })
 
+const MonthlyPanel = dynamic(() => import("../panels/monthly-panel"), {
+  loading: () => <div className="p-6">월별 운영 요약 로딩 중...</div>,
+  ssr: false,
+})
+
 export default function OperationsClient() {
   const router = useRouter()
   const { role, loading: permissionsLoading, hasPermission } = usePermissions()
-  const [activeTab, setActiveTab] = useState("finance")
+  const [activeTab, setActiveTab] = useState("monthly")
 
   if (permissionsLoading) {
     return (
@@ -88,7 +93,12 @@ export default function OperationsClient() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            <span className="hidden sm:inline">월별 운영 요약</span>
+            <span className="sm:hidden">월별</span>
+          </TabsTrigger>
           <TabsTrigger value="finance" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">재무관리</span>
@@ -115,6 +125,10 @@ export default function OperationsClient() {
             <span className="sm:hidden">재고</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="monthly" className="space-y-6">
+          <MonthlyPanel />
+        </TabsContent>
 
         <TabsContent value="finance" className="space-y-6">
           <Card>
