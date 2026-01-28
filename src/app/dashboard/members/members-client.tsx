@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AlertTriangle, Flag, X, Users, UserX, UserPlus, Home, DollarSign, Plus, Minus } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
@@ -351,7 +352,16 @@ export default function MembersClient() {
   }
 
   const handleCustomerClick = async (customer: Customer) => {
-    console.log("회원 클릭:", customer.name, customer.id)
+    // 같은 회원을 다시 클릭하면 선택 해제
+    if (selectedCustomer?.id === customer.id) {
+      setSelectedCustomer(null)
+      setSearchQuery("")
+      setTasks([])
+      setTaskCount(0)
+      return
+    }
+
+    console.log("회원 선택:", customer.name, customer.id)
     setSelectedCustomer(customer)
     setSearchQuery(`${customer.member_number} - ${customer.name}`)
     console.log("티켓 로딩 시작...")
@@ -744,13 +754,24 @@ export default function MembersClient() {
             <div className="flex justify-end gap-3">
               <Button
                 onClick={() => setShowPointDialog(true)}
-                variant="outline"
-                className="border-green-600 text-green-600 hover:bg-green-50"
+                variant={selectedCustomer ? "default" : "outline"}
+                className={selectedCustomer
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "border-gray-300 text-gray-400 cursor-not-allowed"
+                }
                 disabled={!selectedCustomer}
-                title="회원을 선택한 후 포인트를 지급하거나 차감할 수 있습니다"
+                title={selectedCustomer
+                  ? `${selectedCustomer.name} 회원의 포인트를 지급하거나 차감합니다`
+                  : "좌측 회원 목록에서 체크박스를 선택해주세요"
+                }
               >
                 <DollarSign className="h-4 w-4 mr-2" />
                 포인트 지급/차감
+                {selectedCustomer && (
+                  <Badge variant="secondary" className="ml-2 bg-white/20">
+                    {selectedCustomer.name}
+                  </Badge>
+                )}
               </Button>
               <Button
                 onClick={() => setShowCreateDialog(true)}
@@ -800,6 +821,7 @@ export default function MembersClient() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50/80 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-center p-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-12">선택</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">회원번호</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">이름</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">상태</th>
@@ -814,11 +836,17 @@ export default function MembersClient() {
                     {filteredCustomers.map((customer) => (
                       <tr
                         key={customer.id}
-                        className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer ${
+                        className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${
                           selectedCustomer?.id === customer.id ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
                         }`}
-                        onClick={() => handleCustomerClick(customer)}
                       >
+                        <td className="p-4 text-center">
+                          <Checkbox
+                            checked={selectedCustomer?.id === customer.id}
+                            onCheckedChange={() => handleCustomerClick(customer)}
+                            className="mx-auto"
+                          />
+                        </td>
                         <td className="p-4 font-medium text-gray-900 dark:text-gray-50">{customer.member_number}</td>
                         <td className="p-4">
                           <button
