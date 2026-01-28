@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { normalizePointAmount } from "@/lib/point-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -452,7 +453,8 @@ export default function MemberUnifiedView({
         throw new Error("로그인된 사용자를 찾을 수 없습니다.")
       }
 
-      const amount = pointAction === "use" ? -Math.abs(parseFloat(pointAmount)) : Math.abs(parseFloat(pointAmount))
+      // normalizePointAmount 사용: 타입에 따라 자동으로 부호 결정
+      const amount = normalizePointAmount(parseFloat(pointAmount), pointAction)
 
       console.log("포인트 삽입 시도:", {
         customer_id: customerId,
@@ -470,6 +472,7 @@ export default function MemberUnifiedView({
           type: pointAction,
           category: pointCategory,
           status: "pending",
+          requested_by: user.id,
           // note: pointNote.trim() || null, // TODO: points 테이블에 note 컬럼 추가 필요
         },
       ]).select()
