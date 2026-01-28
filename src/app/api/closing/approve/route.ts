@@ -112,22 +112,37 @@ export async function POST(request: NextRequest) {
           let newGeneral = customer.total_point_general || 0
           let newBetting = customer.total_point_betting || 0
 
-          // amount는 이미 음수로 저장되어 있음
-          if (point.category === "general") {
-            newGeneral += point.amount // 음수를 더하면 차감됨
-          } else if (point.category === "betting") {
-            newBetting += point.amount // 음수를 더하면 차감됨
-          }
+          // amount 절댓값을 사용하여 무조건 차감
+          const amountToDeduct = Math.abs(point.amount)
 
-          // 잔액이 음수가 되지 않도록 체크
-          if (newGeneral < 0 || newBetting < 0) {
-            console.error("Insufficient balance after deduction")
-            // 롤백: 포인트 상태를 다시 pending으로
-            await supabase
-              .from("points")
-              .update({ status: "pending", approved_by: null })
-              .eq("id", point.id)
-            continue
+          if (point.category === "general") {
+            newGeneral -= amountToDeduct // 차감
+            if (newGeneral < 0) {
+              console.error("Insufficient general points:", {
+                current: customer.total_point_general,
+                toDeduct: amountToDeduct
+              })
+              // 롤백: 포인트 상태를 다시 pending으로
+              await supabase
+                .from("points")
+                .update({ status: "pending", approved_by: null })
+                .eq("id", point.id)
+              continue
+            }
+          } else if (point.category === "betting") {
+            newBetting -= amountToDeduct // 차감
+            if (newBetting < 0) {
+              console.error("Insufficient betting points:", {
+                current: customer.total_point_betting,
+                toDeduct: amountToDeduct
+              })
+              // 롤백: 포인트 상태를 다시 pending으로
+              await supabase
+                .from("points")
+                .update({ status: "pending", approved_by: null })
+                .eq("id", point.id)
+              continue
+            }
           }
 
           // 포인트 업데이트
