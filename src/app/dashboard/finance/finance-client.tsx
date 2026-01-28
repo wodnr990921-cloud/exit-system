@@ -284,8 +284,14 @@ export default function FinanceClient() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">재무관리</h1>
+          <Button
+            onClick={() => router.push("/dashboard/points-management")}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            포인트 승인 →
+          </Button>
         </div>
 
         {/* 알림 */}
