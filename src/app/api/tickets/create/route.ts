@@ -130,6 +130,115 @@ ${itemsText}
       return NextResponse.json({ error: "아이템 저장에 실패했습니다.", details: itemsError.message }, { status: 500 })
     }
 
+    // 포인트 동결 처리 (회원이 있는 경우)
+    if (member_id && total_amount > 0) {
+      try {
+        // 회원 정보 조회
+        const { data: customer, error: customerError } = await supabase
+          .from("customers")
+          .select("total_point_general, total_point_betting")
+          .eq("id", member_id)
+          .single()
+
+        if (customerError) {
+          console.error("Error fetching customer:", customerError)
+          throw new Error("회원 정보를 찾을 수 없습니다.")
+        }
+
+        // 카테고리별로 포인트 분류
+        let generalAmount = 0
+        let bettingAmount = 0
+
+        items.forEach((item: any) => {
+          const amount = item.amount || 0
+          if (item.category === "game") {
+            // 경기는 배팅 포인트
+            bettingAmount += amount
+          } else {
+            // 나머지는 일반 포인트
+            generalAmount += amount
+          }
+        })
+
+        // 잔액 확인
+        const availableGeneral = customer.total_point_general || 0
+        const availableBetting = customer.total_point_betting || 0
+
+        if (generalAmount > availableGeneral) {
+          // 롤백
+          await supabase.from("task_items").delete().eq("task_id", taskData.id)
+          await supabase.from("tasks").delete().eq("id", taskData.id)
+          return NextResponse.json(
+            { error: `일반 포인트 잔액이 부족합니다. (필요: ${generalAmount}원, 보유: ${availableGeneral}원)` },
+            { status: 400 }
+          )
+        }
+
+        if (bettingAmount > availableBetting) {
+          // 롤백
+          await supabase.from("task_items").delete().eq("task_id", taskData.id)
+          await supabase.from("tasks").delete().eq("id", taskData.id)
+          return NextResponse.json(
+            { error: `배팅 포인트 잔액이 부족합니다. (필요: ${bettingAmount}원, 보유: ${availableBetting}원)` },
+            { status: 400 }
+          )
+        }
+
+        // 포인트 동결 기록 (pending 상태로 저장)
+        const pointRecords = []
+
+        if (generalAmount > 0) {
+          pointRecords.push({
+            customer_id: member_id,
+            user_id: user.id,
+            amount: -generalAmount, // 음수로 저장
+            category: "general",
+            type: "use",
+            status: "pending", // 동결 상태
+            reason: `티켓 ${ticket_no} - 일반 포인트 사용`,
+            requested_by: user.id,
+          })
+        }
+
+        if (bettingAmount > 0) {
+          pointRecords.push({
+            customer_id: member_id,
+            user_id: user.id,
+            amount: -bettingAmount, // 음수로 저장
+            category: "betting",
+            type: "use",
+            status: "pending", // 동결 상태
+            reason: `티켓 ${ticket_no} - 배팅 포인트 사용`,
+            requested_by: user.id,
+          })
+        }
+
+        if (pointRecords.length > 0) {
+          const { error: pointError } = await supabase.from("points").insert(pointRecords)
+
+          if (pointError) {
+            console.error("Error creating point records:", pointError)
+            // 롤백
+            await supabase.from("task_items").delete().eq("task_id", taskData.id)
+            await supabase.from("tasks").delete().eq("id", taskData.id)
+            return NextResponse.json(
+              { error: "포인트 동결 처리에 실패했습니다.", details: pointError.message },
+              { status: 500 }
+            )
+          }
+        }
+      } catch (error: any) {
+        console.error("Error processing points:", error)
+        // 롤백
+        await supabase.from("task_items").delete().eq("task_id", taskData.id)
+        await supabase.from("tasks").delete().eq("id", taskData.id)
+        return NextResponse.json(
+          { error: error.message || "포인트 처리 중 오류가 발생했습니다." },
+          { status: 500 }
+        )
+      }
+    }
+
     return NextResponse.json({
       success: true,
       ticket_no: ticket_no,

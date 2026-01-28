@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // 티켓 정보 조회
     const { data: task, error: taskError } = await supabase
       .from("tasks")
-      .select("id, status, member_id")
+      .select("id, status, member_id, customer_id, ticket_no")
       .eq("id", taskId)
       .single()
 
@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const customerId = task.customer_id || task.member_id
+    const ticketNo = task.ticket_no
 
     // 마감 처리 (트랜잭션)
     const now = new Date().toISOString()
@@ -62,21 +65,90 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. 해당 티켓의 모든 포인트 변동 내역이 '확정' 상태로 변경 (수정 불가)
-    // points 테이블에서 해당 티켓과 관련된 포인트 거래를 찾아서 확정 처리
-    // task_items를 통해 포인트 거래를 찾을 수 있음 (points 테이블에 task_item_id가 있음)
-    const { data: taskItems } = await supabase
-      .from("task_items")
-      .select("id")
-      .eq("task_id", taskId)
+    // 2. 포인트 승인 및 실제 차감
+    if (customerId && ticketNo) {
+      // 이 티켓과 관련된 pending 상태의 포인트 찾기
+      const { data: pendingPoints, error: pointsError } = await supabase
+        .from("points")
+        .select("*")
+        .eq("customer_id", customerId)
+        .eq("status", "pending")
+        .eq("type", "use")
+        .ilike("reason", `%${ticketNo}%`) // reason에 ticket_no가 포함된 경우
 
-    if (taskItems && taskItems.length > 0) {
-      const taskItemIds = taskItems.map((item) => item.id)
-      
-      // task_item_id로 포인트 거래를 찾아서 status를 'confirmed'로 변경
-      // 하지만 points 테이블에 status가 이미 'approved'이므로, 별도 확정 상태가 필요할 수도 있음
-      // 일단 현재 구조에서는 points의 status가 'approved'이면 확정된 것으로 간주
-      // 필요시 points 테이블에 'confirmed' 상태를 추가할 수 있음
+      if (pointsError) {
+        console.error("Error fetching pending points:", pointsError)
+      }
+
+      if (pendingPoints && pendingPoints.length > 0) {
+        // 포인트별로 승인 처리
+        for (const point of pendingPoints) {
+          // 1. 포인트 상태를 approved로 변경
+          const { error: approveError } = await supabase
+            .from("points")
+            .update({
+              status: "approved",
+              approved_by: user.id,
+            })
+            .eq("id", point.id)
+
+          if (approveError) {
+            console.error("Error approving point:", approveError)
+            continue
+          }
+
+          // 2. 회원의 실제 포인트 차감
+          const { data: customer, error: customerError } = await supabase
+            .from("customers")
+            .select("total_point_general, total_point_betting")
+            .eq("id", customerId)
+            .single()
+
+          if (customerError || !customer) {
+            console.error("Error fetching customer:", customerError)
+            continue
+          }
+
+          let newGeneral = customer.total_point_general || 0
+          let newBetting = customer.total_point_betting || 0
+
+          // amount는 이미 음수로 저장되어 있음
+          if (point.category === "general") {
+            newGeneral += point.amount // 음수를 더하면 차감됨
+          } else if (point.category === "betting") {
+            newBetting += point.amount // 음수를 더하면 차감됨
+          }
+
+          // 잔액이 음수가 되지 않도록 체크
+          if (newGeneral < 0 || newBetting < 0) {
+            console.error("Insufficient balance after deduction")
+            // 롤백: 포인트 상태를 다시 pending으로
+            await supabase
+              .from("points")
+              .update({ status: "pending", approved_by: null })
+              .eq("id", point.id)
+            continue
+          }
+
+          // 포인트 업데이트
+          const { error: updateError } = await supabase
+            .from("customers")
+            .update({
+              total_point_general: newGeneral,
+              total_point_betting: newBetting,
+            })
+            .eq("id", customerId)
+
+          if (updateError) {
+            console.error("Error updating customer points:", updateError)
+            // 롤백: 포인트 상태를 다시 pending으로
+            await supabase
+              .from("points")
+              .update({ status: "pending", approved_by: null })
+              .eq("id", point.id)
+          }
+        }
+      }
     }
 
     // 3. 도서 재고 및 배팅 정산 내역은 이미 처리되었으므로 추가 작업 불필요
