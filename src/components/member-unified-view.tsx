@@ -7,6 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useToast } from "@/lib/hooks/use-toast"
 import {
   User,
   FileText,
@@ -26,6 +37,7 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Edit,
 } from "lucide-react"
 
 interface MemberUnifiedViewProps {
@@ -88,6 +100,7 @@ export default function MemberUnifiedView({
   memberNumber,
 }: MemberUnifiedViewProps) {
   const supabase = createClient()
+  const { toast } = useToast()
 
   const [loading, setLoading] = useState(true)
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null)
@@ -106,6 +119,17 @@ export default function MemberUnifiedView({
     totalPointCharged: 0,
     totalPointUsed: 0,
   })
+
+  // 편집 관련 상태
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    institution: "",
+    prison_number: "",
+    depositor_name: "",
+    mailbox_address: "",
+  })
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadAllData()
@@ -257,6 +281,57 @@ export default function MemberUnifiedView({
     })
   }
 
+  const handleOpenEditDialog = () => {
+    if (customerDetails) {
+      setEditForm({
+        name: customerDetails.name,
+        institution: customerDetails.institution || "",
+        prison_number: customerDetails.prison_number || "",
+        depositor_name: customerDetails.depositor_name || "",
+        mailbox_address: customerDetails.mailbox_address || "",
+      })
+      setShowEditDialog(true)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!customerDetails) return
+
+    setSaving(true)
+    try {
+      const { error } = await supabase
+        .from("customers")
+        .update({
+          name: editForm.name.trim(),
+          institution: editForm.institution.trim() || null,
+          prison_number: editForm.prison_number.trim() || null,
+          depositor_name: editForm.depositor_name.trim() || null,
+          mailbox_address: editForm.mailbox_address.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", customerId)
+
+      if (error) throw error
+
+      toast({
+        title: "저장 완료",
+        description: "회원 정보가 수정되었습니다.",
+      })
+
+      setShowEditDialog(false)
+      await loadCustomerDetails()
+    } catch (error: any) {
+      console.error("Error updating customer:", error)
+      toast({
+        variant: "destructive",
+        title: "저장 실패",
+        description: error.message || "회원 정보 수정에 실패했습니다.",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: any }> = {
       pending: { label: "대기", variant: "outline" },
@@ -293,10 +368,16 @@ export default function MemberUnifiedView({
                 <CardDescription>회원번호: {memberNumber}</CardDescription>
               </div>
             </div>
-            <Button onClick={loadAllData} variant="outline" size="sm">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              새로고침
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleOpenEditDialog} variant="outline" size="sm">
+                <Edit className="w-4 h-4 mr-2" />
+                정보 수정
+              </Button>
+              <Button onClick={loadAllData} variant="outline" size="sm">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                새로고침
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -584,6 +665,83 @@ export default function MemberUnifiedView({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 정보 수정 다이얼로그 */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>회원 정보 수정</DialogTitle>
+            <DialogDescription>
+              회원의 기본 정보를 수정합니다. 포인트는 별도로 관리됩니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">이름</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="회원 이름"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-institution">시설명</Label>
+              <Input
+                id="edit-institution"
+                value={editForm.institution}
+                onChange={(e) => setEditForm({ ...editForm, institution: e.target.value })}
+                placeholder="교정시설 이름"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-prison-number">수번</Label>
+              <Input
+                id="edit-prison-number"
+                value={editForm.prison_number}
+                onChange={(e) => setEditForm({ ...editForm, prison_number: e.target.value })}
+                placeholder="수형번호"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-depositor">예금주</Label>
+              <Input
+                id="edit-depositor"
+                value={editForm.depositor_name}
+                onChange={(e) => setEditForm({ ...editForm, depositor_name: e.target.value })}
+                placeholder="입금자 이름"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-mailbox">우편함 주소</Label>
+              <Input
+                id="edit-mailbox"
+                value={editForm.mailbox_address}
+                onChange={(e) => setEditForm({ ...editForm, mailbox_address: e.target.value })}
+                placeholder="우편함 주소"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              disabled={saving}
+            >
+              취소
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={saving}>
+              {saving ? "저장 중..." : "저장"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

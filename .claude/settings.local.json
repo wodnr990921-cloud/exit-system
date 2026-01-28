@@ -28,7 +28,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(chmod +x \"C:\\\\Users\\\\User\\\\exit system\\\\.git\\\\hooks\\\\post-commit\")",
+      "Bash(echo \"# Git 자동 Push 설정 완료\n\n이제 git commit 후 자동으로 push됩니다.\n\n설정 위치: .git/hooks/post-commit\n\n자세한 내용: .git/hooks/README.md 참고\n\")"
     ]
   }
 }
