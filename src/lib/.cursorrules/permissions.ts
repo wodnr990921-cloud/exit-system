@@ -77,3 +77,30 @@ export async function checkStaffAccess() {
     return { hasAccess: false, user: null }
   }
 }
+
+/**
+ * CEO 권한 확인 (CEO만)
+ */
+export async function checkCEOAccess() {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { hasAccess: false, user: null, role: null }
+    }
+
+    const { data } = await supabase.from("users").select("role").eq("id", user.id).single()
+
+    if (data && data.role === "ceo") {
+      return { hasAccess: true, user, role: data.role }
+    }
+
+    return { hasAccess: false, user, role: data?.role || null }
+  } catch (error) {
+    console.error("Error checking CEO permissions:", error)
+    return { hasAccess: false, user: null, role: null }
+  }
+}

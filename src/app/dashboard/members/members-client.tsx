@@ -154,12 +154,37 @@ export default function MembersClient() {
   const [pointNote, setPointNote] = useState("")
   const [processingPoint, setProcessingPoint] = useState(false)
 
+  // 사용자 권한 상태
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [isCEO, setIsCEO] = useState(false)
+
   const supabase = createClient()
   const { toast } = useToast()
 
   useEffect(() => {
     loadCustomers()
+    loadUserRole()
   }, [])
+
+  const loadUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", user.id)
+          .single()
+
+        if (userData) {
+          setUserRole(userData.role)
+          setIsCEO(userData.role === "ceo")
+        }
+      }
+    } catch (error) {
+      console.error("Error loading user role:", error)
+    }
+  }
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -441,27 +466,74 @@ export default function MembersClient() {
     setShowMemberDetailDialog(true)
   }
 
-  // 미등록 회원 삭제
-  const handleDeleteUnregisteredCustomer = async (customerId: string, memberNumber: string, e: React.MouseEvent) => {
+  // 회원 삭제 (CEO 전용)
+  const handleDeleteCustomer = async (customer: Customer, e: React.MouseEvent) => {
     e.stopPropagation() // 행 클릭 이벤트 방지
 
-    if (!confirm(`정말로 미등록 회원 (${memberNumber})을(를) 삭제하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) {
+    if (!isCEO) {
+      toast({
+        variant: "destructive",
+        title: "권한 없음",
+        description: "CEO만 회원을 삭제할 수 있습니다.",
+      })
+      return
+    }
+
+    // 경고 메시지
+    const warningMessage = `⚠️ 회원 삭제 확인\n\n회원: ${customer.name} (${customer.member_number})\n수용기관: ${customer.institution || '-'}\n\n이 작업은 되돌릴 수 없으며, 다음 데이터도 함께 삭제됩니다:\n- 모든 티켓 및 댓글\n- 모든 포인트 내역\n- 모든 플래그\n\n정말로 삭제하시겠습니까?`
+
+    if (!confirm(warningMessage)) {
+      return
+    }
+
+    // 2차 확인
+    const finalConfirm = prompt(`삭제를 확정하려면 회원 이름 "${customer.name}"을(를) 입력하세요:`)
+    if (finalConfirm !== customer.name) {
+      toast({
+        variant: "destructive",
+        title: "취소됨",
+        description: "이름이 일치하지 않아 삭제가 취소되었습니다.",
+      })
       return
     }
 
     try {
-      const { error } = await supabase
-        .from("customers")
-        .delete()
-        .eq("id", customerId)
+      const response = await fetch(`/api/customers/${customer.id}`, {
+        method: "DELETE",
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      setSuccess(`미등록 회원 (${memberNumber})이(가) 삭제되었습니다.`)
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "회원 삭제에 실패했습니다.")
+      }
+
+      toast({
+        title: "삭제 완료",
+        description: `${customer.name} 회원이 삭제되었습니다.\n관련 티켓: ${result.deletedData?.relatedTasks || 0}개\n관련 포인트: ${result.deletedData?.relatedPoints || 0}개`,
+      })
+
+      setSuccess(`${customer.name} (${customer.member_number}) 회원이 삭제되었습니다.`)
       await loadCustomers() // 목록 새로고침
+
+      // 선택된 회원이면 선택 해제
+      if (selectedCustomer?.id === customer.id) {
+        setSelectedCustomer(null)
+        setSearchQuery("")
+        setTasks([])
+        setTaskCount(0)
+      }
+
+      setTimeout(() => setSuccess(null), 5000)
     } catch (error: any) {
       console.error("회원 삭제 실패:", error)
+      toast({
+        variant: "destructive",
+        title: "삭제 실패",
+        description: error.message || "회원 삭제 중 오류가 발생했습니다.",
+      })
       setError(`회원 삭제 실패: ${error.message}`)
+      setTimeout(() => setError(null), 5000)
     }
   }
 
@@ -954,17 +1026,14 @@ export default function MembersClient() {
                           {formatNumber(customer.total_point_betting || customer.betting_points)}
                         </td>
                         <td className="p-4 text-center">
-                          {/* 미등록 회원인 경우에만 삭제 버튼 표시 */}
-                          {(customer.member_number.startsWith('TEMP') || 
-                            customer.member_number.startsWith('미등록') || 
-                            customer.member_number.startsWith('UNREG') ||
-                            customer.name === '미등록' ||
-                            customer.name.startsWith('미등록')) && (
+                          {/* CEO만 회원 삭제 가능 */}
+                          {isCEO && (
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={(e) => handleDeleteUnregisteredCustomer(customer.id, customer.member_number, e)}
+                              onClick={(e) => handleDeleteCustomer(customer, e)}
                               className="h-7 px-2 text-xs"
+                              title="CEO 전용: 회원 및 연관 데이터 삭제"
                             >
                               <UserX className="w-3 h-3 mr-1" />
                               삭제
