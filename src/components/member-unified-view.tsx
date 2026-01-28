@@ -68,6 +68,21 @@ interface TaskRecord {
   created_at: string
   closed_at: string | null
   reply_content: string | null
+  reply_sent_at: string | null
+  ai_summary: string | null
+  assignee: {
+    name: string | null
+  } | null
+  closed_by_user: {
+    name: string | null
+  } | null
+  task_items: Array<{
+    id: string
+    category: string
+    description: string
+    amount: number
+    procurement_status: string | null
+  }>
 }
 
 interface PointHistoryRecord {
@@ -131,6 +146,10 @@ export default function MemberUnifiedView({
   })
   const [saving, setSaving] = useState(false)
 
+  // 티켓 상세 다이얼로그
+  const [showTaskDialog, setShowTaskDialog] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null)
+
   useEffect(() => {
     loadAllData()
   }, [customerId])
@@ -170,14 +189,34 @@ export default function MemberUnifiedView({
     try {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, ticket_no, title, status, total_amount, created_at, closed_at, reply_content")
+        .select(`
+          id,
+          ticket_no,
+          title,
+          status,
+          total_amount,
+          created_at,
+          closed_at,
+          reply_content,
+          reply_sent_at,
+          ai_summary,
+          assignee:users!tasks_assignee_id_fkey(name),
+          closed_by_user:users!tasks_closed_by_fkey(name),
+          task_items(
+            id,
+            category,
+            description,
+            amount,
+            procurement_status
+          )
+        `)
         .eq("customer_id", customerId)
         .order("created_at", { ascending: false })
 
       if (error) throw error
 
       const taskData = data || []
-      setTasks(taskData)
+      setTasks(taskData as any)
 
       // 통계 계산
       setStats((prev) => ({
@@ -330,6 +369,23 @@ export default function MemberUnifiedView({
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleTaskClick = (task: TaskRecord) => {
+    setSelectedTask(task)
+    setShowTaskDialog(true)
+  }
+
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      book: "도서",
+      game: "게임",
+      goods: "물품",
+      inquiry: "문의",
+      betting: "베팅",
+      other: "기타",
+    }
+    return labels[category] || category
   }
 
   const getStatusBadge = (status: string) => {
@@ -516,9 +572,13 @@ export default function MemberUnifiedView({
                     </TableRow>
                   ) : (
                     tasks.map((task) => (
-                      <TableRow key={task.id}>
+                      <TableRow
+                        key={task.id}
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900"
+                        onClick={() => handleTaskClick(task)}
+                      >
                         <TableCell className="font-mono">{task.ticket_no}</TableCell>
-                        <TableCell>{task.title || "-"}</TableCell>
+                        <TableCell>{task.title || task.ai_summary || "-"}</TableCell>
                         <TableCell>{formatCurrency(task.total_amount || 0)}</TableCell>
                         <TableCell>{getStatusBadge(task.status)}</TableCell>
                         <TableCell>{formatDate(task.created_at)}</TableCell>
@@ -738,6 +798,137 @@ export default function MemberUnifiedView({
             </Button>
             <Button onClick={handleSaveEdit} disabled={saving}>
               {saving ? "저장 중..." : "저장"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 티켓 상세 다이얼로그 */}
+      <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>티켓 상세 정보</DialogTitle>
+            <DialogDescription>
+              티켓번호: {selectedTask?.ticket_no}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTask && (
+            <div className="space-y-6 py-4">
+              {/* 기본 정보 */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">기본 정보</h4>
+                  {getStatusBadge(selectedTask.status)}
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">생성일:</span>
+                    <p className="font-medium">{formatDate(selectedTask.created_at)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">담당자:</span>
+                    <p className="font-medium">{(selectedTask.assignee as any)?.name || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">총 금액:</span>
+                    <p className="font-medium text-blue-600">{formatCurrency(selectedTask.total_amount || 0)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">마감일:</span>
+                    <p className="font-medium">
+                      {selectedTask.closed_at ? formatDate(selectedTask.closed_at) : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">답변 발송일:</span>
+                    <p className="font-medium">
+                      {selectedTask.reply_sent_at ? formatDate(selectedTask.reply_sent_at) : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">마감 처리자:</span>
+                    <p className="font-medium">{(selectedTask.closed_by_user as any)?.name || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI 요약 */}
+              {selectedTask.ai_summary && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold">요약</h4>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm whitespace-pre-wrap">{selectedTask.ai_summary}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 티켓 아이템 */}
+              {selectedTask.task_items && selectedTask.task_items.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold">항목 내역</h4>
+                  <div className="border rounded">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>분류</TableHead>
+                          <TableHead>내용</TableHead>
+                          <TableHead className="text-right">금액</TableHead>
+                          <TableHead>상태</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedTask.task_items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <Badge variant="outline">{getCategoryLabel(item.category)}</Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(item.amount || 0)}
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-600">
+                              {item.procurement_status || "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* 답변 내용 */}
+              {selectedTask.reply_content && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">답변 내용</h4>
+                    {selectedTask.reply_sent_at && (
+                      <Badge variant="default" className="bg-green-600">
+                        답변 발송 완료
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded border">
+                    <p className="text-sm whitespace-pre-wrap">{selectedTask.reply_content}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 답변 미작성 상태 */}
+              {!selectedTask.reply_content && selectedTask.status !== "closed" && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    아직 답변이 작성되지 않았습니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTaskDialog(false)}>
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>
