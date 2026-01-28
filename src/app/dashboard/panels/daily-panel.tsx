@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 interface DailyData {
   todayIncome: number
@@ -15,6 +16,7 @@ interface DailyData {
 
 export default function DailyPanel() {
   const router = useRouter()
+  const supabase = createClient()
   const [data, setData] = useState<DailyData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -24,14 +26,59 @@ export default function DailyPanel() {
 
   const fetchDailyData = async () => {
     try {
-      // For now, we'll use mock data
-      // TODO: Replace with actual API call to /api/finance/daily-summary
+      // 오늘 날짜 범위 계산
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const todayStr = today.toISOString()
+      const tomorrowStr = tomorrow.toISOString()
+
+      // 1. 금일 입금 (충전) - approved 상태
+      const { data: incomeData, error: incomeError } = await supabase
+        .from("points")
+        .select("amount")
+        .eq("type", "charge")
+        .eq("status", "approved")
+        .gte("created_at", todayStr)
+        .lt("created_at", tomorrowStr)
+
+      if (incomeError) throw incomeError
+
+      const todayIncome = incomeData?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0
+
+      // 2. 금일 지출 (사용) - approved 상태
+      const { data: expenseData, error: expenseError } = await supabase
+        .from("points")
+        .select("amount")
+        .eq("type", "use")
+        .eq("status", "approved")
+        .gte("created_at", todayStr)
+        .lt("created_at", tomorrowStr)
+
+      if (expenseError) throw expenseError
+
+      const todayExpense = expenseData?.reduce((sum, item) => sum + Math.abs(item.amount || 0), 0) || 0
+
+      // 3. 승인 대기 건수
+      const { count: pendingCount, error: pendingError } = await supabase
+        .from("points")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending")
+
+      if (pendingError) throw pendingError
+
+      const pendingApprovalsCount = pendingCount || 0
+
+      // 4. 순이익 계산
+      const todayProfit = todayIncome - todayExpense
 
       setData({
-        todayIncome: 850000,
-        todayExpense: 210000,
-        todayProfit: 640000,
-        pendingApprovalsCount: 3
+        todayIncome,
+        todayExpense,
+        todayProfit,
+        pendingApprovalsCount
       })
     } catch (error) {
       console.error("Failed to fetch daily data:", error)
