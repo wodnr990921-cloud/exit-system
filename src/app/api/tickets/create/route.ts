@@ -24,6 +24,27 @@ export async function POST(request: NextRequest) {
     // 총액 계산
     const total_amount = items.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
 
+    // 업무 유형 자동 결정
+    const categories = new Set(items.map((item: any) => item.category))
+    let work_type = ""
+
+    if (categories.size === 1) {
+      // 단일 카테고리
+      const category = Array.from(categories)[0]
+      const workTypeMap: Record<string, string> = {
+        book: "도서",
+        game: "경기",
+        goods: "물품",
+        inquiry: "문의",
+        complaint: "민원",
+        other: "기타",
+      }
+      work_type = workTypeMap[category] || "기타"
+    } else {
+      // 여러 카테고리 섞여있음
+      work_type = "복합"
+    }
+
     // 티켓번호 생성 (YYYYMMDD-XXXXXX 형식)
     const now = new Date()
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "")
@@ -99,6 +120,7 @@ ${itemsText}
           member_id: member_id || null,
           customer_id: member_id || null, // 호환성 유지
           total_amount: total_amount,
+          work_type: work_type, // 업무 유형 자동 설정
           ai_summary: ai_summary || null,
           status: "draft",
           title: `티켓 ${ticket_no}`,

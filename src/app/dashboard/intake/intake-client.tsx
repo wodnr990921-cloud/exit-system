@@ -1510,6 +1510,16 @@ export default function IntakeClient() {
                       </div>
                     </div>
 
+                    {/* 업무 유형 표시 */}
+                    {selectedTask.work_type && (
+                      <div>
+                        <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
+                          <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💼 업무 유형</Label>
+                        </div>
+                        <p className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">{selectedTask.work_type}</p>
+                      </div>
+                    )}
+
                     <div>
                       <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
                         <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">👤 회원</Label>
