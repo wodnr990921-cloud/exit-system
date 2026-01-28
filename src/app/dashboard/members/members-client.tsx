@@ -303,10 +303,14 @@ export default function MembersClient() {
       const createdCustomer = data
 
       // 초기 포인트가 있으면 승인 대기 상태로 추가
+      // 현재 로그인한 사용자 ID 가져오기
+      const { data: { user } } = await supabase.auth.getUser()
+
       const initialPoints = []
       if (newCustomer.normal_points > 0) {
         initialPoints.push({
           customer_id: createdCustomer.id,
+          user_id: user?.id,
           amount: newCustomer.normal_points,
           type: "charge",
           category: "general",
@@ -317,6 +321,7 @@ export default function MembersClient() {
       if (newCustomer.betting_points > 0) {
         initialPoints.push({
           customer_id: createdCustomer.id,
+          user_id: user?.id,
           amount: newCustomer.betting_points,
           type: "charge",
           category: "betting",
