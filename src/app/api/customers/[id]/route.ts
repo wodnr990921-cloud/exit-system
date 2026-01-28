@@ -16,7 +16,7 @@ import { checkCEOAccess } from "@/lib/.cursorrules/permissions"
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { hasAccess, user, role } = await checkCEOAccess()
@@ -32,7 +32,8 @@ export async function DELETE(
       )
     }
 
-    const { id } = params
+    // Next.js 16: params는 Promise
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json(
