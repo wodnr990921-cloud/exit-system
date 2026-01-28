@@ -43,6 +43,7 @@
         "cheerio": "^1.1.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "jspdf": "^4.0.0",
         "lucide-react": "^0.562.0",
         "openai": "^6.16.0",
         "puppeteer": "^24.35.0",

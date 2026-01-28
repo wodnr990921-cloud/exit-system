@@ -42,37 +42,35 @@ export async function GET(request: NextRequest) {
 
     // Build query
     let query = supabase
-      .from("work_reports")
+      .from("daily_daily_work_reports")
       .select(`
         *,
-        users:employee_id (
+        users:user_id (
           id,
           name,
           username
         )
       `)
-      .order("clock_in", { ascending: false })
+      .order("clock_in_time", { ascending: false })
 
     // Apply filters based on user role
     if (!isAdmin) {
       // Regular employees can only see their own reports
-      query = query.eq("employee_id", user.id)
+      query = query.eq("user_id", user.id)
     } else if (employeeId) {
       // Admins can filter by specific employee
-      query = query.eq("employee_id", employeeId)
+      query = query.eq("user_id", employeeId)
     }
 
     // Date filters
     if (date) {
-      const startOfDay = `${date}T00:00:00Z`
-      const endOfDay = `${date}T23:59:59Z`
-      query = query.gte("clock_in", startOfDay).lte("clock_in", endOfDay)
+      query = query.eq("report_date", date)
     } else if (startDate && endDate) {
-      query = query.gte("clock_in", `${startDate}T00:00:00Z`).lte("clock_in", `${endDate}T23:59:59Z`)
+      query = query.gte("report_date", startDate).lte("report_date", endDate)
     } else if (startDate) {
-      query = query.gte("clock_in", `${startDate}T00:00:00Z`)
+      query = query.gte("report_date", startDate)
     } else if (endDate) {
-      query = query.lte("clock_in", `${endDate}T23:59:59Z`)
+      query = query.lte("report_date", endDate)
     }
 
     // Status filter
@@ -126,32 +124,30 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { consumables = [], expenses = [], message = "" } = body
+    const { supplies_used = [], expenses = [], handover_notes = "" } = body
 
-    // Check if user already has an active (in_progress) work report today
+    // Check if user already has a work report today
     const today = new Date().toISOString().split("T")[0]
     const { data: existingReport } = await supabase
-      .from("work_reports")
+      .from("daily_work_reports")
       .select("id, status")
-      .eq("employee_id", user.id)
-      .eq("status", "in_progress")
-      .gte("clock_in", `${today}T00:00:00Z`)
-      .lte("clock_in", `${today}T23:59:59Z`)
+      .eq("user_id", user.id)
+      .eq("report_date", today)
       .single()
 
     if (existingReport) {
       return NextResponse.json(
-        { error: "You already have an active work session. Please clock out first." },
+        { error: "You already have a work report for today. Please use PUT to update it." },
         { status: 400 }
       )
     }
 
-    // Validate consumables format
-    if (consumables.length > 0) {
-      for (const item of consumables) {
-        if (!item.item_code || !item.quantity) {
+    // Validate supplies format
+    if (supplies_used.length > 0) {
+      for (const item of supplies_used) {
+        if (!item.code || !item.quantity) {
           return NextResponse.json(
-            { error: "Invalid consumable format. item_code and quantity are required." },
+            { error: "Invalid supply format. code and quantity are required." },
             { status: 400 }
           )
         }
@@ -161,29 +157,36 @@ export async function POST(request: NextRequest) {
     // Validate expenses format
     if (expenses.length > 0) {
       for (const expense of expenses) {
-        if (!expense.description || !expense.amount) {
+        if (!expense.item || !expense.amount) {
           return NextResponse.json(
-            { error: "Invalid expense format. description and amount are required." },
+            { error: "Invalid expense format. item and amount are required." },
             { status: 400 }
           )
         }
       }
     }
 
+    // Calculate total costs
+    const total_supply_cost = supplies_used.reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.unit_price || 0)), 0)
+    const total_expense_amount = expenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0)
+
     // Create work report with clock in time
     const { data: report, error: insertError } = await supabase
-      .from("work_reports")
+      .from("daily_work_reports")
       .insert({
-        employee_id: user.id,
-        clock_in: new Date().toISOString(),
-        consumables: consumables,
+        user_id: user.id,
+        report_date: today,
+        clock_in_time: new Date().toISOString(),
+        supplies_used: supplies_used,
         expenses: expenses,
-        message: message,
-        status: "in_progress",
+        handover_notes: handover_notes,
+        total_supply_cost,
+        total_expense_amount,
+        status: "draft",
       })
       .select(`
         *,
-        users:employee_id (
+        users:user_id (
           id,
           name,
           username
@@ -199,15 +202,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create audit log
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: "clock_in",
-      table_name: "work_reports",
-      record_id: report.id,
-      changes: { clock_in: report.clock_in },
-      ip_address: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
-    })
+    // Create audit log (if audit_logs table exists)
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: "clock_in",
+        table_name: "daily_work_reports",
+        record_id: report.id,
+        changes: { clock_in_time: report.clock_in_time },
+        ip_address: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
+      })
+    } catch (auditError) {
+      // Audit log is optional, don't fail the request
+      console.warn("Could not create audit log:", auditError)
+    }
 
     return NextResponse.json({
       success: true,
@@ -248,7 +256,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { reportId, clockOut, consumables, expenses, message } = body
+    const { reportId, clockOut, supplies_used, expenses, handover_notes } = body
 
     if (!reportId) {
       return NextResponse.json(
@@ -259,7 +267,7 @@ export async function PUT(request: NextRequest) {
 
     // Get existing report
     const { data: existingReport, error: fetchError } = await supabase
-      .from("work_reports")
+      .from("daily_work_reports")
       .select("*")
       .eq("id", reportId)
       .single()
@@ -280,7 +288,7 @@ export async function PUT(request: NextRequest) {
 
     const isAdmin = userData?.role && ["admin", "operator", "ceo"].includes(userData.role)
 
-    if (existingReport.employee_id !== user.id && !isAdmin) {
+    if (existingReport.user_id !== user.id && !isAdmin) {
       return NextResponse.json(
         { error: "You don't have permission to update this report" },
         { status: 403 }
@@ -291,54 +299,56 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {}
 
     if (clockOut) {
-      if (existingReport.clock_out) {
+      if (existingReport.clock_out_time) {
         return NextResponse.json(
           { error: "Already clocked out" },
           { status: 400 }
         )
       }
-      updateData.clock_out = new Date().toISOString()
-      updateData.status = "completed"
+      updateData.clock_out_time = new Date().toISOString()
+      updateData.status = "submitted" // Changed from completed to submitted
     }
 
-    if (consumables !== undefined) {
-      // Validate consumables format
-      for (const item of consumables) {
-        if (!item.item_code || !item.quantity) {
+    if (supplies_used !== undefined) {
+      // Validate supplies format
+      for (const item of supplies_used) {
+        if (!item.code || !item.quantity) {
           return NextResponse.json(
-            { error: "Invalid consumable format. item_code and quantity are required." },
+            { error: "Invalid supply format. code and quantity are required." },
             { status: 400 }
           )
         }
       }
-      updateData.consumables = consumables
+      updateData.supplies_used = supplies_used
+      updateData.total_supply_cost = supplies_used.reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.unit_price || 0)), 0)
     }
 
     if (expenses !== undefined) {
       // Validate expenses format
       for (const expense of expenses) {
-        if (!expense.description || !expense.amount) {
+        if (!expense.item || !expense.amount) {
           return NextResponse.json(
-            { error: "Invalid expense format. description and amount are required." },
+            { error: "Invalid expense format. item and amount are required." },
             { status: 400 }
           )
         }
       }
       updateData.expenses = expenses
+      updateData.total_expense_amount = expenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0)
     }
 
-    if (message !== undefined) {
-      updateData.message = message
+    if (handover_notes !== undefined) {
+      updateData.handover_notes = handover_notes
     }
 
     // Update work report
     const { data: updatedReport, error: updateError } = await supabase
-      .from("work_reports")
+      .from("daily_work_reports")
       .update(updateData)
       .eq("id", reportId)
       .select(`
         *,
-        users:employee_id (
+        users:user_id (
           id,
           name,
           username
@@ -354,16 +364,21 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Create audit log
+    // Create audit log (if audit_logs table exists)
     const auditAction = clockOut ? "clock_out" : "update_work_report"
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: auditAction,
-      table_name: "work_reports",
-      record_id: reportId,
-      changes: updateData,
-      ip_address: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
-    })
+    try {
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        action: auditAction,
+        table_name: "daily_work_reports",
+        record_id: reportId,
+        changes: updateData,
+        ip_address: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
+      })
+    } catch (auditError) {
+      // Audit log is optional, don't fail the request
+      console.warn("Could not create audit log:", auditError)
+    }
 
     return NextResponse.json({
       success: true,

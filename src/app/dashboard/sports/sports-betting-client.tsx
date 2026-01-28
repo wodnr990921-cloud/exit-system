@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { adjustOdds } from "@/lib/betting-calculator"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -504,6 +505,21 @@ export default function SportsBettingClient() {
     pendingBets: bets.filter(b => b.status === 'pending').length,
   }
 
+  // 배당률 표시 헬퍼 (원본 → 조정)
+  const renderOdds = (original: number | undefined, label: string, colorClass: string) => {
+    if (!original) return null
+    const adjusted = adjustOdds(original).adjusted
+    return (
+      <div className={`px-2 py-1 ${colorClass} rounded`}>
+        <span className="text-xs text-gray-500">{label}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs line-through opacity-50">{original.toFixed(2)}</span>
+          <span className="font-semibold">{adjusted.toFixed(2)}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -739,19 +755,28 @@ export default function SportsBettingClient() {
                                 {match.oddsHome && (
                                   <div className="px-3 py-2 bg-green-50 dark:bg-green-950 rounded text-center">
                                     <div className="text-xs text-gray-500">승</div>
-                                    <div className="font-bold text-green-700">{match.oddsHome.toFixed(2)}</div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs line-through opacity-50">{match.oddsHome.toFixed(2)}</span>
+                                      <span className="font-bold text-green-700">{adjustOdds(match.oddsHome).adjusted.toFixed(2)}</span>
+                                    </div>
                                   </div>
                                 )}
                                 {match.oddsDraw && (
                                   <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded text-center">
                                     <div className="text-xs text-gray-500">무</div>
-                                    <div className="font-bold">{match.oddsDraw.toFixed(2)}</div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs line-through opacity-50">{match.oddsDraw.toFixed(2)}</span>
+                                      <span className="font-bold">{adjustOdds(match.oddsDraw).adjusted.toFixed(2)}</span>
+                                    </div>
                                   </div>
                                 )}
                                 {match.oddsAway && (
                                   <div className="px-3 py-2 bg-blue-50 dark:bg-blue-950 rounded text-center">
                                     <div className="text-xs text-gray-500">패</div>
-                                    <div className="font-bold text-blue-700">{match.oddsAway.toFixed(2)}</div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs line-through opacity-50">{match.oddsAway.toFixed(2)}</span>
+                                      <span className="font-bold text-blue-700">{adjustOdds(match.oddsAway).adjusted.toFixed(2)}</span>
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -853,33 +878,12 @@ export default function SportsBettingClient() {
                                 </div>
                               </TableCell>
 
-                              {/* 배당률 */}
+                              {/* 배당률 (원본 → 조정) */}
                               <TableCell>
                                 <div className="flex gap-2 justify-center text-sm">
-                                  {match.odds_home && (
-                                    <div className="px-2 py-1 bg-green-50 dark:bg-green-950 rounded">
-                                      <span className="text-xs text-gray-500">승</span>
-                                      <span className="ml-1 font-semibold text-green-700">
-                                        {match.odds_home.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {match.odds_draw && (
-                                    <div className="px-2 py-1 bg-gray-50 dark:bg-gray-900 rounded">
-                                      <span className="text-xs text-gray-500">무</span>
-                                      <span className="ml-1 font-semibold">
-                                        {match.odds_draw.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {match.odds_away && (
-                                    <div className="px-2 py-1 bg-blue-50 dark:bg-blue-950 rounded">
-                                      <span className="text-xs text-gray-500">패</span>
-                                      <span className="ml-1 font-semibold text-blue-700">
-                                        {match.odds_away.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
+                                  {renderOdds(match.odds_home, '승', 'bg-green-50 dark:bg-green-950 text-green-700')}
+                                  {renderOdds(match.odds_draw, '무', 'bg-gray-50 dark:bg-gray-900')}
+                                  {renderOdds(match.odds_away, '패', 'bg-blue-50 dark:bg-blue-950 text-blue-700')}
                                 </div>
                               </TableCell>
 
@@ -1022,7 +1026,10 @@ export default function SportsBettingClient() {
                               {bet.amount.toLocaleString()}P
                             </TableCell>
                             <TableCell className="text-right">
-                              {bet.odds.toFixed(2)}
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-xs opacity-50">조정</span>
+                                <span className="font-semibold">{bet.odds.toFixed(2)}</span>
+                              </div>
                             </TableCell>
                             <TableCell className="text-right text-green-600">
                               {bet.potential_win.toLocaleString()}P

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createWinNotification } from "@/lib/.cursorrules/notifications"
+import { calculateWinnings } from "@/lib/betting-calculator"
 
 export async function POST(request: NextRequest) {
   try {
@@ -107,8 +108,8 @@ export async function POST(request: NextRequest) {
       const isWin = choice === result
 
       if (isWin) {
-        // 승리: 배당금 지급
-        const payout = Math.round(betAmount * odds)
+        // 승리: 배당금 지급 (조정된 배당률 사용)
+        const payout = calculateWinnings(betAmount, odds)
         totalPayout += payout
         winCount++
 

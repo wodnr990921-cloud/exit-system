@@ -25,7 +25,8 @@
       "Bash(ls:*)",
       "Bash(timeout /t)",
       "Bash(cmd.exe //c \"taskkill /F /PID 4504\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

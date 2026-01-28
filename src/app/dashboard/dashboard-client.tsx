@@ -32,6 +32,7 @@ import {
 } from "lucide-react"
 import NoticePopup from "@/components/notice-popup"
 import WorkReportWidget from "./work-report-widget"
+import UnprocessedTicketsAlert from "@/components/unprocessed-tickets-alert"
 
 interface User {
   id: string
@@ -396,11 +397,13 @@ export default function DashboardClient() {
     { id: "mailroom", label: "📸 우편실", path: "/dashboard/mailroom", requiredRole: ["operator", "ceo", "admin"], color: "blue" },
     { id: "qa", label: "💬 문의/답변", path: "/dashboard/qa", requiredRole: null, color: "blue" },
     { id: "closing", label: "📊 일일마감", path: "/dashboard/closing", requiredRole: ["operator", "ceo", "admin"], color: "red" },
-    { id: "procurement", label: "📦 발주업무", path: "/dashboard/logistics", requiredRole: null, color: "blue" },
+    { id: "procurement", label: "📦 발주관리", path: "/dashboard/procurement", requiredRole: ["operator", "ceo", "admin"], color: "blue" },
+    { id: "logistics", label: "🚚 배송관리", path: "/dashboard/logistics", requiredRole: null, color: "blue" },
     { id: "betting", label: "🎯 배팅업무", path: "/dashboard/sports", requiredRole: ["operator", "ceo", "admin"], color: "green" },
     { id: "operations", label: "💼 업무관리", path: "/dashboard/operations", requiredRole: ["operator", "ceo", "admin"], color: "emerald" },
     { id: "members", label: "👥 회원관리", path: "/dashboard/members", requiredRole: null, color: "purple" },
     { id: "notices", label: "📢 공지사항", path: "/dashboard/notices", requiredRole: ["operator", "ceo", "admin"], color: "blue" },
+    { id: "audit-logs", label: "🛡️ 감사로그", path: "/dashboard/audit-logs", requiredRole: ["ceo", "admin"], color: "red" },
     { id: "settings", label: "⚙️ 설정", path: "/dashboard/settings", requiredRole: ["operator", "ceo", "admin"], color: "purple" },
     { id: "work-report", label: "📋 업무보고", path: "/dashboard/work-report", requiredRole: null, color: "blue" },
   ]
@@ -533,6 +536,11 @@ export default function DashboardClient() {
 
             {/* Work Report Widget */}
             <WorkReportWidget />
+
+            {/* Unprocessed Tickets Alert */}
+            {currentUser && (
+              <UnprocessedTicketsAlert userRole={currentUser.role} userId={currentUser.id} />
+            )}
 
             {/* KPI Cards - Staff */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -782,6 +790,11 @@ export default function DashboardClient() {
 
           {/* Work Report Widget */}
           <WorkReportWidget />
+
+          {/* Unprocessed Tickets Alert */}
+          {currentUser && (
+            <UnprocessedTicketsAlert userRole={currentUser.role} userId={currentUser.id} />
+          )}
 
           {/* KPI Cards - Admin */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

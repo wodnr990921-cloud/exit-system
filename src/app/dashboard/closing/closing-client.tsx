@@ -31,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { UserPlus, X, CheckCircle2 } from "lucide-react"
+import { UserPlus, X, CheckCircle2, FileDown } from "lucide-react"
+import { generateAndDownloadDailyPDF } from "@/lib/pdf-generator"
 
 interface Task {
   id: string
@@ -327,6 +328,28 @@ export default function ClosingClient() {
     }
   }
 
+  // PDF 다운로드
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
+
+  const handleDownloadPDF = async () => {
+    setDownloadingPDF(true)
+    setError(null)
+
+    try {
+      const result = await generateAndDownloadDailyPDF()
+
+      if (result) {
+        setSuccess(`PDF 다운로드 완료: ${result.filename}`)
+        setTimeout(() => setSuccess(null), 3000)
+      }
+    } catch (error: any) {
+      console.error('PDF 다운로드 오류:', error)
+      setError(error.message || 'PDF 다운로드에 실패했습니다.')
+    } finally {
+      setDownloadingPDF(false)
+    }
+  }
+
   // 답변 일괄 출력
   const handleBatchPrintReplies = async () => {
     try {
@@ -596,6 +619,15 @@ export default function ClosingClient() {
               className="bg-green-600 hover:bg-green-700 text-white font-medium"
             >
               + 신규 티켓 생성
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownloadPDF}
+              disabled={downloadingPDF}
+              className="border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              {downloadingPDF ? "PDF 생성 중..." : "PDF 다운로드"}
             </Button>
             <Button
               variant="outline"

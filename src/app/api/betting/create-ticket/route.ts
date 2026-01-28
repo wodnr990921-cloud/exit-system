@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
+import { adjustOdds, calculateWinnings } from "@/lib/betting-calculator"
 
 /**
  * 배팅 티켓 생성 API
  * - 티켓 시스템과 완전 통합
  * - 여러 경기를 한 티켓에 담을 수 있음
+ * - 배당률 자동 -0.1 차감 적용
  */
 export async function POST(request: NextRequest) {
   try {
@@ -90,17 +92,21 @@ export async function POST(request: NextRequest) {
       }
 
       // 배당률 확인
-      const odds = 
+      const originalOdds =
         choice === 'home' ? match.odds_home :
         choice === 'away' ? match.odds_away :
         choice === 'draw' ? match.odds_draw : null
 
-      if (!odds) {
+      if (!originalOdds) {
         return NextResponse.json(
           { error: `배당률 정보가 없습니다: ${choice}` },
           { status: 400 }
         )
       }
+
+      // 배당률 자동 -0.1 차감
+      const adjustedOddsData = adjustOdds(originalOdds)
+      const potentialWin = calculateWinnings(amount, adjustedOddsData.adjusted)
 
       totalAmount += amount
 
@@ -108,21 +114,22 @@ export async function POST(request: NextRequest) {
         matchId,
         match,
         choice,
-        odds,
+        odds: adjustedOddsData.adjusted, // 조정된 배당률 저장
+        originalOdds: originalOdds, // 원본 배당률 기록
         amount,
-        potentialWin: Math.floor(amount * odds)
+        potentialWin
       })
     }
 
     // 티켓 번호 생성
     const ticketNo = `BET-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
-    // AI 요약 생성
-    const aiSummary = betDetails.map(b => 
+    // AI 요약 생성 (원본 배당률 -> 조정 배당률 표시)
+    const aiSummary = betDetails.map(b =>
       `${b.match.home_team} vs ${b.match.away_team} - ${
-        b.choice === 'home' ? '홈승' : 
+        b.choice === 'home' ? '홈승' :
         b.choice === 'away' ? '원정승' : '무승부'
-      } (${b.odds.toFixed(2)}) ${b.amount.toLocaleString()}P`
+      } (${b.originalOdds.toFixed(2)}→${b.odds.toFixed(2)}) ${b.amount.toLocaleString()}P`
     ).join('\n')
 
     // 트랜잭션: tasks 생성

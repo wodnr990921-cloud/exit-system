@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createWinNotification } from "@/lib/.cursorrules/notifications"
+import { calculateWinnings } from "@/lib/betting-calculator"
 
 /**
  * POST /api/sports/auto-settle
@@ -10,7 +11,7 @@ import { createWinNotification } from "@/lib/.cursorrules/notifications"
  * 1. is_verified=true인 finished 경기들을 조회
  * 2. 각 경기에 대한 task_items (category='game') 찾기
  * 3. 경기 결과(result_score)를 파싱하여 승/패 판단
- * 4. 당첨자에게 포인트 지급 및 알림 생성
+ * 4. 당첨자에게 포인트 지급 및 알림 생성 (조정된 배당률 적용)
  * 5. 패배자 상태 업데이트
  *
  * 권한: operator, admin, ceo
@@ -192,8 +193,8 @@ export async function POST(request: NextRequest) {
           }
 
           if (isWin) {
-            // 승리: 배당금 지급
-            const payout = Math.round(betAmount * odds)
+            // 승리: 배당금 지급 (조정된 배당률 사용)
+            const payout = calculateWinnings(betAmount, odds)
             totalPayout += payout
             winCount++
 
