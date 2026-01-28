@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { normalizePointAmount } from "@/lib/point-utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -191,7 +192,7 @@ ${itemsText}
           pointRecords.push({
             customer_id: member_id,
             user_id: user.id,
-            amount: -Math.abs(generalAmount), // 확실히 음수로 저장
+            amount: normalizePointAmount(generalAmount, "use"), // 자동으로 음수 처리
             category: "general",
             type: "use",
             status: "pending", // 동결 상태
@@ -204,7 +205,7 @@ ${itemsText}
           pointRecords.push({
             customer_id: member_id,
             user_id: user.id,
-            amount: -Math.abs(bettingAmount), // 확실히 음수로 저장
+            amount: normalizePointAmount(bettingAmount, "use"), // 자동으로 음수 처리
             category: "betting",
             type: "use",
             status: "pending", // 동결 상태

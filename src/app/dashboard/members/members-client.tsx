@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { normalizePointAmount } from "@/lib/point-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -261,7 +262,8 @@ export default function MembersClient() {
     setProcessingPoint(true)
     try {
       // pending 상태로 points 테이블에 insert
-      const amount = pointAction === "use" ? -Math.abs(parseFloat(pointAmount)) : Math.abs(parseFloat(pointAmount))
+      // normalizePointAmount가 타입에 따라 자동으로 부호 결정
+      const amount = normalizePointAmount(parseFloat(pointAmount), pointAction)
 
       const { error } = await supabase.from("points").insert([
         {

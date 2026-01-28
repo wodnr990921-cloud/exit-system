@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { normalizePointAmount } from "@/lib/point-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -325,16 +326,8 @@ export default function PointsClient() {
       }
 
       // 포인트 거래 기록 및 잔액 업데이트
-      // amount는 타입에 따라 양수/음수로 저장
-      let amountToStore = parseInt(newPointTransaction.amount)
-      if (type === "use") {
-        // 차감은 음수로 저장
-        amountToStore = -Math.abs(amountToStore)
-      } else if (type === "exchange") {
-        // 전환도 음수로 저장 (빠져나가는 포인트)
-        amountToStore = -Math.abs(amountToStore)
-      }
-      // charge, refund는 양수 그대로
+      // normalizePointAmount가 타입에 따라 자동으로 부호 결정
+      const amountToStore = normalizePointAmount(parseInt(newPointTransaction.amount), type)
 
       const { error: insertError } = await supabase.from("points").insert([
         {
