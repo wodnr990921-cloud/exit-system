@@ -424,13 +424,38 @@ export default function MemberUnifiedView({
   }
 
   const handlePointTransaction = async () => {
-    if (!customerDetails || !pointAmount) return
+    console.log("handlePointTransaction 시작", { customerDetails, pointAmount })
+
+    if (!customerDetails) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "회원 정보를 찾을 수 없습니다.",
+      })
+      return
+    }
+
+    if (!pointAmount || parseFloat(pointAmount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "금액을 입력해주세요.",
+      })
+      return
+    }
 
     setProcessingPoint(true)
     try {
       const amount = pointAction === "use" ? -Math.abs(parseFloat(pointAmount)) : Math.abs(parseFloat(pointAmount))
 
-      const { error } = await supabase.from("points").insert([
+      console.log("포인트 삽입 시도:", {
+        customer_id: customerId,
+        amount,
+        type: pointAction,
+        category: pointCategory,
+      })
+
+      const { data, error } = await supabase.from("points").insert([
         {
           customer_id: customerId,
           amount: amount,
@@ -439,9 +464,14 @@ export default function MemberUnifiedView({
           status: "pending",
           note: pointNote.trim() || null,
         },
-      ])
+      ]).select()
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      console.log("포인트 삽입 성공:", data)
 
       toast({
         title: "성공",
