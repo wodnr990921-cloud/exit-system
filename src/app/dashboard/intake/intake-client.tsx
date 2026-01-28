@@ -160,6 +160,11 @@ export default function IntakeClient() {
   ])
   const [otherInquiry, setOtherInquiry] = useState("")
 
+  // 업무 유형 수정
+  const [editingWorkType, setEditingWorkType] = useState(false)
+  const [selectedWorkType, setSelectedWorkType] = useState<string>("")
+  const [savingWorkType, setSavingWorkType] = useState(false)
+
   // 현재 사용자 및 티켓 삭제
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -226,6 +231,7 @@ export default function IntakeClient() {
           items:task_items(id, match_id, betting_choice, betting_odds, potential_win, category, description, amount)
         `
         )
+        .neq("status", "closed") // 마감된 티켓 제외
         .order("created_at", { ascending: false })
         .limit(100)
 
@@ -301,6 +307,59 @@ export default function IntakeClient() {
       console.error("Error loading tasks:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUpdateWorkType = async () => {
+    if (!selectedTask || !selectedWorkType) {
+      toast({
+        title: "오류",
+        description: "업무 유형을 선택하세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSavingWorkType(true)
+    try {
+      const response = await fetch(`/api/tickets/${selectedTask.id}/update-work-type`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ work_type: selectedWorkType }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "업무 유형 수정에 실패했습니다.")
+      }
+
+      toast({
+        title: "성공",
+        description: "업무 유형이 수정되었습니다.",
+      })
+
+      // 티켓 목록 새로고침
+      await loadAllTasks()
+
+      // 선택된 티켓 업데이트
+      if (selectedTask) {
+        setSelectedTask({
+          ...selectedTask,
+          work_type: selectedWorkType,
+        })
+      }
+
+      setEditingWorkType(false)
+    } catch (error: any) {
+      console.error("Error updating work type:", error)
+      toast({
+        title: "오류",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setSavingWorkType(false)
     }
   }
 
@@ -1510,15 +1569,66 @@ export default function IntakeClient() {
                       </div>
                     </div>
 
-                    {/* 업무 유형 표시 */}
-                    {selectedTask.work_type && (
-                      <div>
-                        <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
-                          <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💼 업무 유형</Label>
-                        </div>
-                        <p className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">{selectedTask.work_type}</p>
+                    {/* 업무 유형 수정 */}
+                    <div>
+                      <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md mb-1">
+                        <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💼 업무 유형</Label>
                       </div>
-                    )}
+                      {editingWorkType ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Select value={selectedWorkType} onValueChange={setSelectedWorkType}>
+                            <SelectTrigger className="w-[200px]">
+                              <SelectValue placeholder="업무 유형 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="도서">도서</SelectItem>
+                              <SelectItem value="경기">경기</SelectItem>
+                              <SelectItem value="물품">물품</SelectItem>
+                              <SelectItem value="문의">문의</SelectItem>
+                              <SelectItem value="민원">민원</SelectItem>
+                              <SelectItem value="기타">기타</SelectItem>
+                              <SelectItem value="복합">복합</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            onClick={handleUpdateWorkType}
+                            disabled={savingWorkType}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            {savingWorkType ? "저장 중..." : "저장"}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setEditingWorkType(false)
+                              setSelectedWorkType(selectedTask.work_type || "")
+                            }}
+                            disabled={savingWorkType}
+                            size="sm"
+                            variant="outline"
+                          >
+                            취소
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                            {selectedTask.work_type || "미지정"}
+                          </p>
+                          <Button
+                            onClick={() => {
+                              setEditingWorkType(true)
+                              setSelectedWorkType(selectedTask.work_type || "")
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs"
+                          >
+                            수정
+                          </Button>
+                        </div>
+                      )}
+                    </div>
 
                     <div>
                       <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
