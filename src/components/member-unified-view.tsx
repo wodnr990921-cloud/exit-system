@@ -883,6 +883,30 @@ export default function MemberUnifiedView({
 
           {selectedTask && (
             <div className="space-y-6 py-4">
+              {/* 회원 잔액 정보 */}
+              {customerDetails && (
+                <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    회원 잔액
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded shadow-sm">
+                      <div className="text-xs text-gray-500 mb-1">일반 포인트</div>
+                      <div className="text-lg font-bold text-green-600">
+                        {formatCurrency(customerDetails.total_point_general || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded shadow-sm">
+                      <div className="text-xs text-gray-500 mb-1">베팅 포인트</div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {formatCurrency(customerDetails.total_point_betting || 0)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 기본 정보 */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
