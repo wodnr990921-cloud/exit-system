@@ -304,7 +304,8 @@ export default function IntakeClient() {
   const loadAllTasks = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // 권한별 필터링: 직원은 자신에게 배정된 티켓만, 관리자급은 모든 티켓
+      let query = supabase
         .from("tasks")
         .select(
           `
@@ -316,6 +317,16 @@ export default function IntakeClient() {
         `
         )
         .neq("status", "closed") // 마감된 티켓 제외
+
+      // 직원(staff, employee)은 자신에게 배정된 티켓만 보기
+      if (currentUser && !hasMinimumRole(currentUser.role, "operator")) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          query = query.eq("assigned_to", user.id)
+        }
+      }
+
+      const { data, error } = await query
         .order("created_at", { ascending: false })
         .limit(100)
 
