@@ -15,15 +15,18 @@ INSERT INTO points (
 )
 SELECT
   c.id AS customer_id,
-  (SELECT id FROM users WHERE role = 'ceo' ORDER BY created_at ASC LIMIT 1) AS user_id,
-  c.total_point_general AS amount,
+  COALESCE(
+    (SELECT id FROM users WHERE role IN ('ceo', 'admin') ORDER BY created_at ASC LIMIT 1),
+    (SELECT id FROM users ORDER BY created_at ASC LIMIT 1)
+  ) AS user_id,
+  COALESCE(c.total_point_general, c.normal_points, 0) AS amount,
   'charge' AS type,
   'general' AS category,
   'approved' AS status,
   '시스템 소급 적용: 기존 일반 포인트 잔액' AS note,
   c.created_at
 FROM customers c
-WHERE c.total_point_general > 0
+WHERE COALESCE(c.total_point_general, c.normal_points, 0) > 0
   AND NOT EXISTS (
     SELECT 1 FROM points p
     WHERE p.customer_id = c.id
@@ -44,15 +47,18 @@ INSERT INTO points (
 )
 SELECT
   c.id AS customer_id,
-  (SELECT id FROM users WHERE role = 'ceo' ORDER BY created_at ASC LIMIT 1) AS user_id,
-  c.total_point_betting AS amount,
+  COALESCE(
+    (SELECT id FROM users WHERE role IN ('ceo', 'admin') ORDER BY created_at ASC LIMIT 1),
+    (SELECT id FROM users ORDER BY created_at ASC LIMIT 1)
+  ) AS user_id,
+  COALESCE(c.total_point_betting, c.betting_points, 0) AS amount,
   'charge' AS type,
   'betting' AS category,
   'approved' AS status,
   '시스템 소급 적용: 기존 베팅 포인트 잔액' AS note,
   c.created_at
 FROM customers c
-WHERE c.total_point_betting > 0
+WHERE COALESCE(c.total_point_betting, c.betting_points, 0) > 0
   AND NOT EXISTS (
     SELECT 1 FROM points p
     WHERE p.customer_id = c.id
