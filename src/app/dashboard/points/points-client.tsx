@@ -260,7 +260,25 @@ export default function PointsClient() {
 
     try {
       const category = newPointTransaction.category === "일반" ? "general" : "betting"
-      const type = newPointTransaction.type === "지급" ? "charge" : "use"
+
+      // 유형 변환
+      let type = ""
+      switch (newPointTransaction.type) {
+        case "지급":
+          type = "charge"
+          break
+        case "차감":
+          type = "use"
+          break
+        case "환불":
+          type = "refund"
+          break
+        case "전환":
+          type = "exchange"
+          break
+        default:
+          throw new Error("유효하지 않은 유형입니다.")
+      }
 
       // 먼저 고객 정보 조회
       const { data: customer, error: customerError } = await supabase
@@ -275,18 +293,33 @@ export default function PointsClient() {
       let newBetting = customer.total_point_betting || 0
 
       // 잔액 계산
-      if (type === "charge") {
+      if (type === "charge" || type === "refund") {
+        // 지급, 환불 = 포인트 증가
         if (category === "general") {
           newGeneral += parseInt(newPointTransaction.amount)
         } else {
           newBetting += parseInt(newPointTransaction.amount)
         }
-      } else {
+      } else if (type === "use") {
+        // 차감 = 포인트 감소
         if (category === "general") {
           newGeneral -= parseInt(newPointTransaction.amount)
           if (newGeneral < 0) throw new Error("일반 포인트 잔액이 부족합니다.")
         } else {
           newBetting -= parseInt(newPointTransaction.amount)
+          if (newBetting < 0) throw new Error("배팅 포인트 잔액이 부족합니다.")
+        }
+      } else if (type === "exchange") {
+        // 전환 = 한 종류에서 다른 종류로 이동
+        if (category === "general") {
+          // 일반에서 배팅으로
+          newGeneral -= parseInt(newPointTransaction.amount)
+          newBetting += parseInt(newPointTransaction.amount)
+          if (newGeneral < 0) throw new Error("일반 포인트 잔액이 부족합니다.")
+        } else {
+          // 배팅에서 일반으로
+          newBetting -= parseInt(newPointTransaction.amount)
+          newGeneral += parseInt(newPointTransaction.amount)
           if (newBetting < 0) throw new Error("배팅 포인트 잔액이 부족합니다.")
         }
       }
@@ -947,6 +980,8 @@ export default function PointsClient() {
                     <SelectContent>
                       <SelectItem value="지급">지급</SelectItem>
                       <SelectItem value="차감">차감</SelectItem>
+                      <SelectItem value="환불">환불</SelectItem>
+                      <SelectItem value="전환">전환</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
