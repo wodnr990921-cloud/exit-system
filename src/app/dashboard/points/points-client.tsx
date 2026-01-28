@@ -325,13 +325,24 @@ export default function PointsClient() {
       }
 
       // 포인트 거래 기록 및 잔액 업데이트
+      // amount는 타입에 따라 양수/음수로 저장
+      let amountToStore = parseInt(newPointTransaction.amount)
+      if (type === "use") {
+        // 차감은 음수로 저장
+        amountToStore = -Math.abs(amountToStore)
+      } else if (type === "exchange") {
+        // 전환도 음수로 저장 (빠져나가는 포인트)
+        amountToStore = -Math.abs(amountToStore)
+      }
+      // charge, refund는 양수 그대로
+
       const { error: insertError } = await supabase.from("points").insert([
         {
           user_id: userId,
           customer_id: newPointTransaction.customer_id,
           category: category,
           type: type,
-          amount: parseInt(newPointTransaction.amount),
+          amount: amountToStore,
           reason: newPointTransaction.reason.trim(),
           requested_by: userId,
           status: "approved", // 관리자가 직접 지급/차감하므로 즉시 승인
@@ -662,8 +673,8 @@ export default function PointsClient() {
                             </TableCell>
                             <TableCell className="text-gray-700 dark:text-gray-300">{getCategoryLabel(transaction.category)}</TableCell>
                             <TableCell className="text-gray-700 dark:text-gray-300">{getTypeLabel(transaction.type)}</TableCell>
-                            <TableCell className="font-medium text-gray-900 dark:text-gray-50">
-                              {formatNumber(transaction.amount)}
+                            <TableCell className={`font-medium ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {transaction.amount >= 0 ? '+' : ''}{formatNumber(transaction.amount)}
                             </TableCell>
                             <TableCell className="text-gray-700 dark:text-gray-300">{transaction.reason || "-"}</TableCell>
                             <TableCell className="text-gray-700 dark:text-gray-300">
@@ -754,8 +765,14 @@ export default function PointsClient() {
                             <TableCell className={isReversed ? "text-red-600 dark:text-red-400" : "text-gray-700 dark:text-gray-300"}>
                               {getTypeLabel(transaction.type)}
                             </TableCell>
-                            <TableCell className={`font-medium ${isReversed ? "text-red-600 dark:text-red-400 line-through" : "text-gray-900 dark:text-gray-50"}`}>
-                              {formatNumber(transaction.amount)}
+                            <TableCell className={`font-medium ${
+                              isReversed
+                                ? "text-red-600 dark:text-red-400 line-through"
+                                : transaction.amount >= 0
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-red-600 dark:text-red-400'
+                            }`}>
+                              {!isReversed && transaction.amount >= 0 ? '+' : ''}{formatNumber(transaction.amount)}
                             </TableCell>
                             <TableCell>
                               {isReversed ? (
