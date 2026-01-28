@@ -472,7 +472,7 @@ export default function MemberUnifiedView({
           type: pointAction,
           category: pointCategory,
           status: "pending",
-          note: pointNote.trim() || null,
+          // note: pointNote.trim() || null, // TODO: points 테이블에 note 컬럼 추가 필요
         },
       ]).select()
 
