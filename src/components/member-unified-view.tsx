@@ -424,18 +424,7 @@ export default function MemberUnifiedView({
   }
 
   const handlePointTransaction = async () => {
-    console.log("🎯 handlePointTransaction 시작", {
-      customerDetails,
-      pointAmount,
-      pointAmountType: typeof pointAmount,
-      pointAmountParsed: parseFloat(pointAmount),
-      pointAction,
-      pointCategory,
-      customerId
-    })
-
     if (!customerDetails) {
-      console.error("❌ customerDetails 없음")
       toast({
         variant: "destructive",
         title: "오류",
@@ -445,7 +434,6 @@ export default function MemberUnifiedView({
     }
 
     if (!pointAmount || parseFloat(pointAmount) <= 0) {
-      console.error("❌ 금액 검증 실패", { pointAmount, parsed: parseFloat(pointAmount) })
       toast({
         variant: "destructive",
         title: "오류",
@@ -456,10 +444,17 @@ export default function MemberUnifiedView({
 
     setProcessingPoint(true)
     try {
+      // 현재 로그인한 사용자 ID 가져오기
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error("로그인된 사용자를 찾을 수 없습니다.")
+      }
+
       const amount = pointAction === "use" ? -Math.abs(parseFloat(pointAmount)) : Math.abs(parseFloat(pointAmount))
 
       console.log("포인트 삽입 시도:", {
         customer_id: customerId,
+        user_id: user.id,
         amount,
         type: pointAction,
         category: pointCategory,
@@ -468,6 +463,7 @@ export default function MemberUnifiedView({
       const { data, error } = await supabase.from("points").insert([
         {
           customer_id: customerId,
+          user_id: user.id,
           amount: amount,
           type: pointAction,
           category: pointCategory,
@@ -1390,36 +1386,20 @@ export default function MemberUnifiedView({
             <div className="text-sm text-gray-500 bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
               ℹ️ 포인트 요청은 재무관리에서 승인 후 적용됩니다.
             </div>
-
-            {/* 디버깅 정보 */}
-            <div className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded border">
-              디버그: pointAmount={pointAmount || "empty"} | parsed={pointAmount ? parseFloat(pointAmount) : "N/A"} |
-              disabled={String(processingPoint || !pointAmount || (pointAmount ? parseFloat(pointAmount) <= 0 : true))}
-            </div>
           </div>
 
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                console.log("❌ 취소 버튼 클릭")
-                setShowPointDialog(false)
-              }}
+              onClick={() => setShowPointDialog(false)}
               disabled={processingPoint}
             >
               취소
             </Button>
             <Button
               type="button"
-              onClick={(e) => {
-                console.log("✅ 지급/차감 버튼 클릭됨!", {
-                  pointAmount,
-                  processingPoint,
-                  disabled: processingPoint || !pointAmount || parseFloat(pointAmount) <= 0
-                })
-                handlePointTransaction()
-              }}
+              onClick={handlePointTransaction}
               disabled={processingPoint || !pointAmount || parseFloat(pointAmount) <= 0}
               className={pointAction === "charge" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
             >
