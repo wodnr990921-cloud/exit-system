@@ -69,6 +69,9 @@ export default function ReceptionClient() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [userId, setUserId] = useState<string | null>(null)
 
+  // 업무 유형 선택
+  const [workType, setWorkType] = useState<string>("")
+
   // 티켓 생성
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -421,6 +424,7 @@ export default function ReceptionClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           member_id: selectedCustomer?.id || null,
+          work_type: workType || null, // 선택한 업무 유형
           items: cartItems.map((item) => ({
             category: item.category,
             description: item.description,
@@ -438,6 +442,7 @@ export default function ReceptionClient() {
       setSuccess(data.message || "티켓이 성공적으로 생성되었습니다.")
       setCreatedTicketNo(data.ticket_no)
       setCartItems([])
+      setWorkType("")
       setSelectedCustomer(null)
       setCustomerSearch("")
 
@@ -874,6 +879,31 @@ export default function ReceptionClient() {
                     ))}
                   </TableBody>
                 </Table>
+
+                {/* 업무 유형 선택 */}
+                <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+                  <Label htmlFor="work-type" className="text-sm font-medium">
+                    💼 업무 유형 (선택사항)
+                  </Label>
+                  <Select value={workType} onValueChange={setWorkType}>
+                    <SelectTrigger id="work-type" className="w-full">
+                      <SelectValue placeholder="업무 유형을 선택하세요 (미선택 시 자동 분류)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">자동 분류</SelectItem>
+                      <SelectItem value="도서">도서</SelectItem>
+                      <SelectItem value="경기">경기</SelectItem>
+                      <SelectItem value="물품">물품</SelectItem>
+                      <SelectItem value="문의">문의</SelectItem>
+                      <SelectItem value="민원">민원</SelectItem>
+                      <SelectItem value="기타">기타</SelectItem>
+                      <SelectItem value="복합">복합</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    업무 유형을 선택하지 않으면 아이템 카테고리 기반으로 자동 분류됩니다.
+                  </p>
+                </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-800">
                   <div className="text-lg font-semibold text-gray-900 dark:text-gray-50">

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { member_id, items } = await request.json()
+    const { member_id, items, work_type: providedWorkType } = await request.json()
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "최소 1개 이상의 아이템이 필요합니다." }, { status: 400 })
@@ -24,25 +24,29 @@ export async function POST(request: NextRequest) {
     // 총액 계산
     const total_amount = items.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
 
-    // 업무 유형 자동 결정
-    const categories = new Set(items.map((item: any) => item.category))
-    let work_type = ""
+    // 업무 유형 결정: 전달받은 값 우선, 없으면 자동 결정
+    let work_type = providedWorkType || ""
 
-    if (categories.size === 1) {
-      // 단일 카테고리
-      const category = Array.from(categories)[0]
-      const workTypeMap: Record<string, string> = {
-        book: "도서",
-        game: "경기",
-        goods: "물품",
-        inquiry: "문의",
-        complaint: "민원",
-        other: "기타",
+    if (!work_type) {
+      // 자동 결정
+      const categories = new Set(items.map((item: any) => item.category))
+
+      if (categories.size === 1) {
+        // 단일 카테고리
+        const category = Array.from(categories)[0]
+        const workTypeMap: Record<string, string> = {
+          book: "도서",
+          game: "경기",
+          goods: "물품",
+          inquiry: "문의",
+          complaint: "민원",
+          other: "기타",
+        }
+        work_type = workTypeMap[category] || "기타"
+      } else {
+        // 여러 카테고리 섞여있음
+        work_type = "복합"
       }
-      work_type = workTypeMap[category] || "기타"
-    } else {
-      // 여러 카테고리 섞여있음
-      work_type = "복합"
     }
 
     // 티켓번호 생성 (YYYYMMDD-XXXXXX 형식)
