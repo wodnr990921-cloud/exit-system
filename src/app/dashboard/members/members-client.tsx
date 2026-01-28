@@ -961,7 +961,6 @@ export default function MembersClient() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50/80 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-center p-4 text-sm font-semibold text-gray-700 dark:text-gray-300 w-12">선택</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">회원번호</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">이름</th>
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">상태</th>
@@ -969,24 +968,18 @@ export default function MembersClient() {
                       <th className="text-left p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">수용번호</th>
                       <th className="text-right p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">일반 포인트</th>
                       <th className="text-right p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">배팅 포인트</th>
-                      <th className="text-center p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">액션</th>
+                      {isCEO && (
+                        <th className="text-center p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">삭제</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {filteredCustomers.map((customer) => (
                       <React.Fragment key={customer.id}>
                         <tr
-                          className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${
-                            selectedCustomer?.id === customer.id ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
-                          }`}
+                          className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer"
+                          onClick={() => handleCustomerClick(customer)}
                         >
-                          <td className="p-4 text-center">
-                            <Checkbox
-                              checked={selectedCustomer?.id === customer.id}
-                              onCheckedChange={() => handleCustomerClick(customer)}
-                              className="mx-auto"
-                            />
-                          </td>
                           <td className="p-4 font-medium text-gray-900 dark:text-gray-50">{customer.member_number}</td>
                           <td className="p-4">
                             <button
@@ -1025,9 +1018,8 @@ export default function MembersClient() {
                         <td className="p-4 text-right font-medium text-gray-900 dark:text-gray-50">
                           {formatNumber(customer.total_point_betting || customer.betting_points)}
                         </td>
-                        <td className="p-4 text-center">
-                          {/* CEO만 회원 삭제 가능 */}
-                          {isCEO && (
+                        {isCEO && (
+                          <td className="p-4 text-center">
                             <Button
                               size="sm"
                               variant="destructive"
@@ -1038,8 +1030,8 @@ export default function MembersClient() {
                               <UserX className="w-3 h-3 mr-1" />
                               삭제
                             </Button>
-                          )}
-                        </td>
+                          </td>
+                        )}
                       </tr>
                     </React.Fragment>
                     ))}
