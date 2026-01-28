@@ -48,6 +48,7 @@ import {
   Edit,
   Plus,
   Minus,
+  X,
 } from "lucide-react"
 
 interface MemberUnifiedViewProps {
@@ -119,6 +120,13 @@ interface BettingRecord {
   created_at: string
 }
 
+interface CartItem {
+  id: string
+  category: "book" | "game" | "goods" | "inquiry" | "complaint" | "other" | "complex"
+  description: string
+  amount: number
+}
+
 export default function MemberUnifiedView({
   customerId,
   customerName,
@@ -167,6 +175,15 @@ export default function MemberUnifiedView({
   const [pointAmount, setPointAmount] = useState("")
   const [pointNote, setPointNote] = useState("")
   const [processingPoint, setProcessingPoint] = useState(false)
+
+  // 티켓 작업 추가 (장바구니)
+  const [itemCategory, setItemCategory] = useState<"book" | "game" | "goods" | "inquiry" | "complaint" | "other" | "complex">("book")
+  const [itemDescription, setItemDescription] = useState("")
+  const [itemAmount, setItemAmount] = useState("")
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [addingItems, setAddingItems] = useState(false)
+  const [replyContent, setReplyContent] = useState("")
+  const [savingReply, setSavingReply] = useState(false)
 
   useEffect(() => {
     loadAllData()
@@ -449,6 +466,100 @@ export default function MemberUnifiedView({
       })
     } finally {
       setProcessingPoint(false)
+    }
+  }
+
+  const handleAddToCart = () => {
+    if (!itemDescription.trim()) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "내용을 입력해주세요.",
+      })
+      return
+    }
+
+    const amount = itemAmount ? parseInt(itemAmount) : 0
+
+    const newItem: CartItem = {
+      id: Date.now().toString() + Math.random().toString(36).substring(7),
+      category: itemCategory,
+      description: itemDescription.trim(),
+      amount: amount,
+    }
+
+    setCartItems([...cartItems, newItem])
+    setItemDescription("")
+    setItemAmount("")
+  }
+
+  const handleRemoveFromCart = (itemId: string) => {
+    setCartItems(cartItems.filter((item) => item.id !== itemId))
+  }
+
+  const handleSaveTaskAdditions = async () => {
+    if (!selectedTask) return
+
+    if (cartItems.length === 0 && !replyContent.trim()) {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "추가할 항목이나 답변을 입력해주세요.",
+      })
+      return
+    }
+
+    setAddingItems(true)
+    try {
+      // 1. 장바구니 아이템이 있으면 task_items에 추가
+      if (cartItems.length > 0) {
+        const taskItems = cartItems.map((item) => ({
+          task_id: selectedTask.id,
+          category: item.category,
+          description: item.description,
+          amount: item.amount,
+          procurement_status: "pending",
+        }))
+
+        const { error: itemsError } = await supabase.from("task_items").insert(taskItems)
+
+        if (itemsError) throw itemsError
+      }
+
+      // 2. 답변 내용이 있으면 업데이트
+      if (replyContent.trim()) {
+        const { error: replyError } = await supabase
+          .from("tasks")
+          .update({
+            reply_content: replyContent.trim(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", selectedTask.id)
+
+        if (replyError) throw replyError
+      }
+
+      toast({
+        title: "성공",
+        description: "티켓에 작업이 추가되었습니다.",
+      })
+
+      // 초기화 및 새로고침
+      setCartItems([])
+      setItemDescription("")
+      setItemAmount("")
+      setReplyContent("")
+      setShowTaskDialog(false)
+      await loadTasks()
+    } catch (error: any) {
+      console.error("Error adding items to task:", error)
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "작업 추가 중 오류가 발생했습니다.",
+      })
+    } finally {
+      setAddingItems(false)
     }
   }
 
@@ -1015,11 +1126,147 @@ export default function MemberUnifiedView({
                   </p>
                 </div>
               )}
+
+              {/* 작업 추가 영역 (티켓이 마감되지 않았을 때만) */}
+              {selectedTask.status !== "closed" && (
+                <div className="space-y-4 mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    작업 추가
+                  </h4>
+
+                  {/* 카테고리 선택 */}
+                  <div className="space-y-2">
+                    <Label>카테고리</Label>
+                    <Select value={itemCategory} onValueChange={(value: any) => setItemCategory(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="book">도서</SelectItem>
+                        <SelectItem value="game">경기 (베팅)</SelectItem>
+                        <SelectItem value="goods">물품</SelectItem>
+                        <SelectItem value="inquiry">문의</SelectItem>
+                        <SelectItem value="complaint">민원</SelectItem>
+                        <SelectItem value="other">기타</SelectItem>
+                        <SelectItem value="complex">복합</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 설명 입력 */}
+                  <div className="space-y-2">
+                    <Label>
+                      {itemCategory === "book" && "책 제목 또는 설명"}
+                      {itemCategory === "game" && "경기 정보 (예: 맨유 승)"}
+                      {itemCategory === "goods" && "물품 내용"}
+                      {(itemCategory === "inquiry" || itemCategory === "complaint") && "내용"}
+                      {(itemCategory === "other" || itemCategory === "complex") && "설명"}
+                    </Label>
+                    <Textarea
+                      placeholder={
+                        itemCategory === "book"
+                          ? "예: 수학의 정석"
+                          : itemCategory === "game"
+                          ? "예: 맨유 승, 레알 승"
+                          : "내용을 입력하세요"
+                      }
+                      value={itemDescription}
+                      onChange={(e) => setItemDescription(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* 금액 입력 */}
+                  <div className="space-y-2">
+                    <Label>금액 (포인트)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={itemAmount}
+                      onChange={(e) => setItemAmount(e.target.value)}
+                    />
+                  </div>
+
+                  {/* 담기 버튼 */}
+                  <Button onClick={handleAddToCart} className="w-full bg-blue-600 hover:bg-blue-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    장바구니에 담기
+                  </Button>
+
+                  {/* 장바구니 */}
+                  {cartItems.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>장바구니 ({cartItems.length}개)</Label>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>분류</TableHead>
+                            <TableHead>내용</TableHead>
+                            <TableHead className="text-right">금액</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {cartItems.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>
+                                <Badge variant="outline">{getCategoryLabel(item.category)}</Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[150px] truncate">{item.description}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleRemoveFromCart(item.id)}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="text-sm font-semibold text-right">
+                        합계: {formatCurrency(cartItems.reduce((sum, item) => sum + item.amount, 0))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 답변 작성 */}
+                  <div className="space-y-2">
+                    <Label>답변 내용 (선택)</Label>
+                    <Textarea
+                      placeholder="답변을 작성하세요..."
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* 저장 버튼 */}
+                  <Button
+                    onClick={handleSaveTaskAdditions}
+                    disabled={addingItems || (cartItems.length === 0 && !replyContent.trim())}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    {addingItems ? "저장 중..." : "작업 저장"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTaskDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowTaskDialog(false)
+              setCartItems([])
+              setItemDescription("")
+              setItemAmount("")
+              setReplyContent("")
+            }}>
               닫기
             </Button>
           </DialogFooter>
