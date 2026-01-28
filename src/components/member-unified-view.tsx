@@ -65,8 +65,10 @@ interface CustomerDetails {
   prison_number: string | null
   depositor_name: string | null
   mailbox_address: string | null
-  total_point_general: number
-  total_point_betting: number
+  total_point_general?: number
+  total_point_betting?: number
+  normal_points?: number
+  betting_points?: number
   created_at: string
 }
 
@@ -665,13 +667,13 @@ export default function MemberUnifiedView({
               <div>
                 <div className="text-sm text-gray-500">일반 포인트</div>
                 <div className="font-medium text-green-600">
-                  {formatCurrency(customerDetails.total_point_general || 0)}
+                  {formatCurrency(customerDetails.total_point_general || customerDetails.normal_points || 0)}
                 </div>
               </div>
               <div>
                 <div className="text-sm text-gray-500">베팅 포인트</div>
                 <div className="font-medium text-blue-600">
-                  {formatCurrency(customerDetails.total_point_betting || 0)}
+                  {formatCurrency(customerDetails.total_point_betting || customerDetails.betting_points || 0)}
                 </div>
               </div>
               <div>
