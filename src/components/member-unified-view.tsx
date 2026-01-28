@@ -424,9 +424,18 @@ export default function MemberUnifiedView({
   }
 
   const handlePointTransaction = async () => {
-    console.log("handlePointTransaction 시작", { customerDetails, pointAmount })
+    console.log("🎯 handlePointTransaction 시작", {
+      customerDetails,
+      pointAmount,
+      pointAmountType: typeof pointAmount,
+      pointAmountParsed: parseFloat(pointAmount),
+      pointAction,
+      pointCategory,
+      customerId
+    })
 
     if (!customerDetails) {
+      console.error("❌ customerDetails 없음")
       toast({
         variant: "destructive",
         title: "오류",
@@ -436,6 +445,7 @@ export default function MemberUnifiedView({
     }
 
     if (!pointAmount || parseFloat(pointAmount) <= 0) {
+      console.error("❌ 금액 검증 실패", { pointAmount, parsed: parseFloat(pointAmount) })
       toast({
         variant: "destructive",
         title: "오류",
@@ -1380,20 +1390,36 @@ export default function MemberUnifiedView({
             <div className="text-sm text-gray-500 bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
               ℹ️ 포인트 요청은 재무관리에서 승인 후 적용됩니다.
             </div>
+
+            {/* 디버깅 정보 */}
+            <div className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded border">
+              디버그: pointAmount={pointAmount || "empty"} | parsed={pointAmount ? parseFloat(pointAmount) : "N/A"} |
+              disabled={String(processingPoint || !pointAmount || (pointAmount ? parseFloat(pointAmount) <= 0 : true))}
+            </div>
           </div>
 
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setShowPointDialog(false)}
+              onClick={() => {
+                console.log("❌ 취소 버튼 클릭")
+                setShowPointDialog(false)
+              }}
               disabled={processingPoint}
             >
               취소
             </Button>
             <Button
               type="button"
-              onClick={handlePointTransaction}
+              onClick={(e) => {
+                console.log("✅ 지급/차감 버튼 클릭됨!", {
+                  pointAmount,
+                  processingPoint,
+                  disabled: processingPoint || !pointAmount || parseFloat(pointAmount) <= 0
+                })
+                handlePointTransaction()
+              }}
               disabled={processingPoint || !pointAmount || parseFloat(pointAmount) <= 0}
               className={pointAction === "charge" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
             >
