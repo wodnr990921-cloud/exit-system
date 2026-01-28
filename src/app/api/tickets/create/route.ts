@@ -191,7 +191,7 @@ ${itemsText}
           pointRecords.push({
             customer_id: member_id,
             user_id: user.id,
-            amount: -generalAmount, // 음수로 저장
+            amount: -Math.abs(generalAmount), // 확실히 음수로 저장
             category: "general",
             type: "use",
             status: "pending", // 동결 상태
@@ -204,7 +204,7 @@ ${itemsText}
           pointRecords.push({
             customer_id: member_id,
             user_id: user.id,
-            amount: -bettingAmount, // 음수로 저장
+            amount: -Math.abs(bettingAmount), // 확실히 음수로 저장
             category: "betting",
             type: "use",
             status: "pending", // 동결 상태
@@ -214,6 +214,8 @@ ${itemsText}
         }
 
         if (pointRecords.length > 0) {
+          console.log("Creating point records for ticket:", ticket_no, pointRecords)
+
           const { error: pointError } = await supabase.from("points").insert(pointRecords)
 
           if (pointError) {

@@ -81,8 +81,17 @@ export async function POST(request: NextRequest) {
       }
 
       if (pendingPoints && pendingPoints.length > 0) {
+        console.log("Approving pending points for ticket:", ticketNo, pendingPoints)
+
         // 포인트별로 승인 처리
         for (const point of pendingPoints) {
+          console.log("Processing point:", {
+            id: point.id,
+            category: point.category,
+            amount: point.amount,
+            type: point.type
+          })
+
           // 1. 포인트 상태를 approved로 변경
           const { error: approveError } = await supabase
             .from("points")
@@ -112,40 +121,52 @@ export async function POST(request: NextRequest) {
           let newGeneral = customer.total_point_general || 0
           let newBetting = customer.total_point_betting || 0
 
-          // amount 절댓값을 사용하여 무조건 차감
-          const amountToDeduct = Math.abs(point.amount)
-
+          // amount 값 그대로 사용: 양수면 추가, 음수면 차감
           if (point.category === "general") {
-            newGeneral -= amountToDeduct // 차감
-            if (newGeneral < 0) {
-              console.error("Insufficient general points:", {
-                current: customer.total_point_general,
-                toDeduct: amountToDeduct
-              })
-              // 롤백: 포인트 상태를 다시 pending으로
-              await supabase
-                .from("points")
-                .update({ status: "pending", approved_by: null })
-                .eq("id", point.id)
-              continue
-            }
+            newGeneral += point.amount
           } else if (point.category === "betting") {
-            newBetting -= amountToDeduct // 차감
-            if (newBetting < 0) {
-              console.error("Insufficient betting points:", {
-                current: customer.total_point_betting,
-                toDeduct: amountToDeduct
-              })
-              // 롤백: 포인트 상태를 다시 pending으로
-              await supabase
-                .from("points")
-                .update({ status: "pending", approved_by: null })
-                .eq("id", point.id)
-              continue
-            }
+            newBetting += point.amount
+          }
+
+          // 잔액이 음수가 되지 않도록 체크
+          if (newGeneral < 0) {
+            console.error("Insufficient general points after approval:", {
+              current: customer.total_point_general,
+              amount: point.amount,
+              newBalance: newGeneral
+            })
+            // 롤백: 포인트 상태를 다시 pending으로
+            await supabase
+              .from("points")
+              .update({ status: "pending", approved_by: null })
+              .eq("id", point.id)
+            continue
+          }
+
+          if (newBetting < 0) {
+            console.error("Insufficient betting points after approval:", {
+              current: customer.total_point_betting,
+              amount: point.amount,
+              newBalance: newBetting
+            })
+            // 롤백: 포인트 상태를 다시 pending으로
+            await supabase
+              .from("points")
+              .update({ status: "pending", approved_by: null })
+              .eq("id", point.id)
+            continue
           }
 
           // 포인트 업데이트
+          console.log("Updating customer balance:", {
+            customerId,
+            oldGeneral: customer.total_point_general,
+            oldBetting: customer.total_point_betting,
+            newGeneral,
+            newBetting,
+            pointAmount: point.amount
+          })
+
           const { error: updateError } = await supabase
             .from("customers")
             .update({
