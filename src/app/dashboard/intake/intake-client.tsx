@@ -61,6 +61,8 @@ interface Task {
     name: string
     institution: string | null
     prison_number: string | null
+    total_point_general: number
+    total_point_betting: number
   } | null
   user: {
     name: string | null
@@ -216,7 +218,7 @@ export default function IntakeClient() {
         .select(
           `
           *,
-          customer:customers!tasks_customer_id_fkey (member_number, name, institution, prison_number),
+          customer:customers!tasks_customer_id_fkey (member_number, name, institution, prison_number, total_point_general, total_point_betting),
           user:users!tasks_user_id_fkey (name, username),
           assigned_to_user:users!tasks_assigned_to_fkey (name, username),
           items:task_items(id, match_id, betting_choice, betting_odds, potential_win, category, description, amount)
@@ -1746,6 +1748,41 @@ export default function IntakeClient() {
                         </div>
                       )}
                     </div>
+
+                    {/* 회원 잔액 정보 */}
+                    {(() => {
+                      const customer = selectedTask.customer
+                      const hasCustomerData = customer && customer.name && customer.member_number
+                      const isTempMember = hasCustomerData && (
+                        customer.member_number.startsWith('TEMP') ||
+                        customer.member_number.startsWith('미등록') ||
+                        customer.member_number.startsWith('UNREG') ||
+                        customer.name === '미등록' ||
+                        customer.name.startsWith('미등록')
+                      )
+                      const hasValidCustomer = hasCustomerData && !isTempMember
+                      return hasValidCustomer
+                    })() && selectedTask.customer && (
+                      <div className="space-y-2 p-3 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg">
+                        <div className="inline-block px-3 py-1 bg-white dark:bg-gray-800 rounded-md shadow-sm">
+                          <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💰 회원 잔액</Label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          <div className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">일반 포인트</div>
+                            <div className="text-lg font-bold text-green-600">
+                              {new Intl.NumberFormat("ko-KR").format(selectedTask.customer.total_point_general || 0)}원
+                            </div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-900 p-3 rounded-lg shadow-sm">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">베팅 포인트</div>
+                            <div className="text-lg font-bold text-blue-600">
+                              {new Intl.NumberFormat("ko-KR").format(selectedTask.customer.total_point_betting || 0)}원
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">

@@ -1394,7 +1394,7 @@ export default function MemberUnifiedView({
             <Button
               type="button"
               onClick={handlePointTransaction}
-              disabled={processingPoint || !pointAmount}
+              disabled={processingPoint || !pointAmount || parseFloat(pointAmount) <= 0}
               className={pointAction === "charge" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
             >
               {processingPoint ? "처리 중..." : pointAction === "charge" ? "지급 요청" : "차감 요청"}
