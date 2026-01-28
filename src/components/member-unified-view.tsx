@@ -16,6 +16,14 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -38,6 +46,8 @@ import {
   XCircle,
   RefreshCw,
   Edit,
+  Plus,
+  Minus,
 } from "lucide-react"
 
 interface MemberUnifiedViewProps {
@@ -149,6 +159,14 @@ export default function MemberUnifiedView({
   // 티켓 상세 다이얼로그
   const [showTaskDialog, setShowTaskDialog] = useState(false)
   const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null)
+
+  // 포인트 지급/차감 다이얼로그
+  const [showPointDialog, setShowPointDialog] = useState(false)
+  const [pointAction, setPointAction] = useState<"charge" | "use">("charge")
+  const [pointCategory, setPointCategory] = useState<"general" | "betting">("general")
+  const [pointAmount, setPointAmount] = useState("")
+  const [pointNote, setPointNote] = useState("")
+  const [processingPoint, setProcessingPoint] = useState(false)
 
   useEffect(() => {
     loadAllData()
@@ -388,6 +406,52 @@ export default function MemberUnifiedView({
     return labels[category] || category
   }
 
+  const handlePointTransaction = async () => {
+    if (!customerDetails || !pointAmount) return
+
+    setProcessingPoint(true)
+    try {
+      const amount = pointAction === "use" ? -Math.abs(parseFloat(pointAmount)) : Math.abs(parseFloat(pointAmount))
+
+      const { error } = await supabase.from("points").insert([
+        {
+          customer_id: customerId,
+          amount: amount,
+          type: pointAction,
+          category: pointCategory,
+          status: "pending",
+          note: pointNote.trim() || null,
+        },
+      ])
+
+      if (error) throw error
+
+      toast({
+        title: "성공",
+        description: `포인트 ${pointAction === "charge" ? "지급" : "차감"} 요청이 등록되었습니다. 재무관리에서 승인해주세요.`,
+      })
+
+      // 다이얼로그 초기화 및 닫기
+      setShowPointDialog(false)
+      setPointAmount("")
+      setPointNote("")
+      setPointAction("charge")
+      setPointCategory("general")
+
+      // 데이터 새로고침
+      await loadAllData()
+    } catch (error: any) {
+      console.error("Point transaction error:", error)
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: error.message || "포인트 처리 중 오류가 발생했습니다.",
+      })
+    } finally {
+      setProcessingPoint(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: any }> = {
       pending: { label: "대기", variant: "outline" },
@@ -425,6 +489,10 @@ export default function MemberUnifiedView({
               </div>
             </div>
             <div className="flex gap-2">
+              <Button onClick={() => setShowPointDialog(true)} variant="outline" size="sm" className="border-green-600 text-green-600 hover:bg-green-50">
+                <DollarSign className="w-4 h-4 mr-2" />
+                포인트 지급/차감
+              </Button>
               <Button onClick={handleOpenEditDialog} variant="outline" size="sm">
                 <Edit className="w-4 h-4 mr-2" />
                 정보 수정
@@ -929,6 +997,106 @@ export default function MemberUnifiedView({
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTaskDialog(false)}>
               닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 포인트 지급/차감 다이얼로그 */}
+      <Dialog open={showPointDialog} onOpenChange={setShowPointDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>포인트 지급/차감</DialogTitle>
+            <DialogDescription>
+              {customerName} ({memberNumber})
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* 작업 구분 */}
+            <div className="space-y-2">
+              <Label>작업 구분</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={pointAction === "charge" ? "default" : "outline"}
+                  className={pointAction === "charge" ? "flex-1 bg-green-600 hover:bg-green-700" : "flex-1"}
+                  onClick={() => setPointAction("charge")}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  지급
+                </Button>
+                <Button
+                  type="button"
+                  variant={pointAction === "use" ? "default" : "outline"}
+                  className={pointAction === "use" ? "flex-1 bg-red-600 hover:bg-red-700" : "flex-1"}
+                  onClick={() => setPointAction("use")}
+                >
+                  <Minus className="w-4 h-4 mr-2" />
+                  차감
+                </Button>
+              </div>
+            </div>
+
+            {/* 포인트 종류 */}
+            <div className="space-y-2">
+              <Label>포인트 종류</Label>
+              <Select value={pointCategory} onValueChange={(value: any) => setPointCategory(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">일반 포인트</SelectItem>
+                  <SelectItem value="betting">베팅 포인트</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 금액 */}
+            <div className="space-y-2">
+              <Label>금액</Label>
+              <Input
+                type="number"
+                placeholder="금액 입력"
+                value={pointAmount}
+                onChange={(e) => setPointAmount(e.target.value)}
+                min="0"
+                step="1000"
+              />
+            </div>
+
+            {/* 메모 */}
+            <div className="space-y-2">
+              <Label>메모 (선택사항)</Label>
+              <Textarea
+                placeholder="사유를 입력하세요"
+                value={pointNote}
+                onChange={(e) => setPointNote(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="text-sm text-gray-500 bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
+              ℹ️ 포인트 요청은 재무관리에서 승인 후 적용됩니다.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPointDialog(false)}
+              disabled={processingPoint}
+            >
+              취소
+            </Button>
+            <Button
+              type="button"
+              onClick={handlePointTransaction}
+              disabled={processingPoint || !pointAmount}
+              className={pointAction === "charge" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
+            >
+              {processingPoint ? "처리 중..." : pointAction === "charge" ? "지급 요청" : "차감 요청"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -29,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { AlertTriangle, Flag, X, Users, UserX, UserPlus, Home, DollarSign, Plus, Minus } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
+import MemberUnifiedView from "@/components/member-unified-view"
 
 const BlacklistContent = dynamic(() => import("../blacklist/blacklist-client"), {
   loading: () => <div className="p-6">블랙리스트 로딩 중...</div>,
@@ -114,6 +115,14 @@ export default function MembersClient() {
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set())
   const [customerTasksMap, setCustomerTasksMap] = useState<Map<string, Task[]>>(new Map())
   const [customerTaskCounts, setCustomerTaskCounts] = useState<Map<string, number>>(new Map())
+
+  // 회원 상세 팝업
+  const [showMemberDetailDialog, setShowMemberDetailDialog] = useState(false)
+  const [memberDetailData, setMemberDetailData] = useState<{
+    id: string
+    name: string
+    member_number: string
+  } | null>(null)
 
   // 플래그 관련 상태
   const [showFlagDialog, setShowFlagDialog] = useState(false)
@@ -274,7 +283,7 @@ export default function MembersClient() {
     try {
       // 회원번호 자동 생성
       const autoMemberNumber = await generateMemberNumber()
-      
+
       const customerData = {
         member_number: autoMemberNumber,
         name: newCustomer.name,
@@ -282,18 +291,63 @@ export default function MembersClient() {
         prison_number: newCustomer.prison_number || null,
         depositor_name: newCustomer.depositor_name || null,
         mailbox_address: newCustomer.mailbox_address || null,
-        normal_points: newCustomer.normal_points || 0,
-        betting_points: newCustomer.betting_points || 0,
         total_deposit: 0,
         total_usage: 0,
         total_betting: 0,
       }
 
-      const { data, error } = await supabase.from("customers").insert([customerData]).select()
+      const { data, error } = await supabase.from("customers").insert([customerData]).select().single()
 
       if (error) throw error
 
-      setSuccess(`회원이 성공적으로 생성되었습니다. (회원번호: ${autoMemberNumber})`)
+      const createdCustomer = data
+
+      // 초기 포인트가 있으면 승인 대기 상태로 추가
+      const initialPoints = []
+      if (newCustomer.normal_points > 0) {
+        initialPoints.push({
+          customer_id: createdCustomer.id,
+          amount: newCustomer.normal_points,
+          type: "charge",
+          category: "general",
+          status: "pending",
+          note: "신규 회원 등록 시 초기 포인트",
+        })
+      }
+      if (newCustomer.betting_points > 0) {
+        initialPoints.push({
+          customer_id: createdCustomer.id,
+          amount: newCustomer.betting_points,
+          type: "charge",
+          category: "betting",
+          status: "pending",
+          note: "신규 회원 등록 시 초기 베팅 포인트",
+        })
+      }
+
+      if (initialPoints.length > 0) {
+        const { error: pointError } = await supabase.from("points").insert(initialPoints)
+        if (pointError) {
+          console.error("초기 포인트 추가 실패:", pointError)
+          toast({
+            variant: "destructive",
+            title: "경고",
+            description: "회원은 생성되었으나 초기 포인트 추가에 실패했습니다. 수동으로 추가해주세요.",
+          })
+        }
+      }
+
+      const pointMessage = initialPoints.length > 0
+        ? " 초기 포인트는 재무관리에서 승인 후 적용됩니다."
+        : ""
+
+      setSuccess(`회원이 성공적으로 생성되었습니다. (회원번호: ${autoMemberNumber})${pointMessage}`)
+
+      toast({
+        title: "성공",
+        description: `${newCustomer.name} 회원이 등록되었습니다.${pointMessage}`,
+      })
+
       setNewCustomer({
         name: "",
         institution: "",
@@ -371,6 +425,15 @@ export default function MembersClient() {
     } catch (error) {
       console.error("티켓 로딩 실패:", error)
     }
+  }
+
+  const handleMemberDetailClick = (customer: Customer) => {
+    setMemberDetailData({
+      id: customer.id,
+      name: customer.name,
+      member_number: customer.member_number,
+    })
+    setShowMemberDetailDialog(true)
   }
 
   // 미등록 회원 삭제
@@ -834,31 +897,28 @@ export default function MembersClient() {
                   </thead>
                   <tbody>
                     {filteredCustomers.map((customer) => (
-                      <tr
-                        key={customer.id}
-                        className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${
-                          selectedCustomer?.id === customer.id ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
-                        }`}
-                      >
-                        <td className="p-4 text-center">
-                          <Checkbox
-                            checked={selectedCustomer?.id === customer.id}
-                            onCheckedChange={() => handleCustomerClick(customer)}
-                            className="mx-auto"
-                          />
-                        </td>
-                        <td className="p-4 font-medium text-gray-900 dark:text-gray-50">{customer.member_number}</td>
-                        <td className="p-4">
-                          <button
-                            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              router.push(`/dashboard/members/${customer.id}`)
-                            }}
-                          >
-                            {customer.name}
-                          </button>
-                        </td>
+                      <React.Fragment key={customer.id}>
+                        <tr
+                          className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors ${
+                            selectedCustomer?.id === customer.id ? "bg-blue-50/50 dark:bg-blue-950/20" : ""
+                          }`}
+                        >
+                          <td className="p-4 text-center">
+                            <Checkbox
+                              checked={selectedCustomer?.id === customer.id}
+                              onCheckedChange={() => handleCustomerClick(customer)}
+                              className="mx-auto"
+                            />
+                          </td>
+                          <td className="p-4 font-medium text-gray-900 dark:text-gray-50">{customer.member_number}</td>
+                          <td className="p-4">
+                            <button
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                              onClick={() => handleMemberDetailClick(customer)}
+                            >
+                              {customer.name}
+                            </button>
+                          </td>
                         <td className="p-4">
                           {customer.flags && customer.flags.length > 0 ? (
                             <div className="flex gap-1">
@@ -907,6 +967,7 @@ export default function MembersClient() {
                           )}
                         </td>
                       </tr>
+                    </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -1394,6 +1455,27 @@ export default function MembersClient() {
                 {processingPoint ? "처리 중..." : pointAction === "charge" ? "지급 요청" : "차감 요청"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 회원 상세 팝업 다이얼로그 */}
+        <Dialog open={showMemberDetailDialog} onOpenChange={setShowMemberDetailDialog}>
+          <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>회원 상세 정보</DialogTitle>
+              <DialogDescription>
+                {memberDetailData?.name} ({memberDetailData?.member_number})
+              </DialogDescription>
+            </DialogHeader>
+            {memberDetailData && (
+              <div className="py-4">
+                <MemberUnifiedView
+                  customerId={memberDetailData.id}
+                  customerName={memberDetailData.name}
+                  memberNumber={memberDetailData.member_number}
+                />
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
