@@ -291,13 +291,33 @@ WHERE created_at >= CURRENT_DATE
 GROUP BY type, category;
 ```
 
+## 최신 마이그레이션
+
+### `20260128_add_note_to_points.sql` - points 테이블에 note 컬럼 추가
+
+**내용:**
+- `points` 테이블에 `note TEXT` 컬럼 추가
+- 포인트 지급/차감 시 메모를 기록할 수 있도록 개선
+
+**적용 방법:**
+```bash
+# Supabase Dashboard SQL Editor에서 실행
+# 또는
+supabase db execute --file supabase/migrations/20260128_add_note_to_points.sql
+```
+
+**적용 후 작업:**
+- `src/components/member-unified-view.tsx` 파일에서 note 필드 주석 제거
+- 포인트 지급 다이얼로그에서 메모 입력 가능
+
 ## 다음 단계
 
-1. [ ] 프로덕션 환경에 마이그레이션 적용
-2. [ ] 기존 포인트 충전/차감 API를 RPC 함수로 교체
-3. [ ] 배팅 정산 로직을 RPC 함수로 교체
-4. [ ] 포인트 이력 조회 UI 구현
-5. [ ] 모니터링 대시보드 추가
+1. [ ] `20260128_add_note_to_points.sql` 마이그레이션 적용
+2. [ ] 프로덕션 환경에 마이그레이션 적용
+3. [ ] 기존 포인트 충전/차감 API를 RPC 함수로 교체
+4. [ ] 배팅 정산 로직을 RPC 함수로 교체
+5. [ ] 포인트 이력 조회 UI 구현
+6. [ ] 모니터링 대시보드 추가
 
 ## 참고 자료
 
