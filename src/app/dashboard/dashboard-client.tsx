@@ -33,6 +33,10 @@ import {
 import NoticePopup from "@/components/notice-popup"
 import WorkReportWidget from "./work-report-widget"
 import UnprocessedTicketsAlert from "@/components/unprocessed-tickets-alert"
+import MonthlyPanel from "./panels/monthly-panel"
+import DailyPanel from "./panels/daily-panel"
+import StaffTaskPanel from "./panels/staff-task-panel"
+import AdminApprovalPanel from "./panels/admin-approval-panel"
 
 interface User {
   id: string
@@ -542,6 +546,11 @@ export default function DashboardClient() {
               <UnprocessedTicketsAlert userRole={currentUser.role} userId={currentUser.id} />
             )}
 
+            {/* Staff Task Panel - Centered and expanded for staff users */}
+            <div className="max-w-6xl mx-auto">
+              <StaffTaskPanel userId={currentUser?.id} role={currentUser?.role} />
+            </div>
+
             {/* KPI Cards - Staff */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
@@ -795,6 +804,21 @@ export default function DashboardClient() {
           {currentUser && (
             <UnprocessedTicketsAlert userRole={currentUser.role} userId={currentUser.id} />
           )}
+
+          {/* 4-Panel Dashboard Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Panel 1: Monthly Summary - Admin only */}
+            <MonthlyPanel />
+
+            {/* Panel 2: Daily Report - Admin only */}
+            <DailyPanel />
+
+            {/* Panel 3: Staff Task Panel - All users */}
+            <StaffTaskPanel userId={currentUser?.id} role={currentUser?.role} />
+
+            {/* Panel 4: Admin Approval Panel - Admin only */}
+            <AdminApprovalPanel />
+          </div>
 
           {/* KPI Cards - Admin */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

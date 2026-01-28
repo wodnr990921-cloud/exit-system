@@ -581,19 +581,22 @@ export default function IntakeClient() {
         total_usage: 0,
         total_betting: 0,
       }
-      console.log("2️⃣ Supabase에 회원 정보 저장 중...", customerData)
+      console.log("2️⃣ API를 통해 회원 정보 저장 중...", customerData)
 
-      const { data: createdCustomer, error: customerError } = await supabase
-        .from("customers")
-        .insert([customerData])
-        .select()
-        .single()
+      const response = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(customerData),
+      })
 
-      if (customerError) {
-        console.error("❌ 회원 저장 실패:", customerError)
-        throw customerError
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("❌ 회원 저장 실패:", result.error)
+        throw new Error(result.error || "회원 등록에 실패했습니다.")
       }
 
+      const createdCustomer = result.customer
       console.log("✅✅ 회원 저장 성공!", createdCustomer)
       console.log("3️⃣ 티켓에 회원 연결 중...", {
         taskId: selectedTask.id,
