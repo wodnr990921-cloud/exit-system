@@ -60,6 +60,7 @@ interface Task {
     amount?: number
   }>
   customer: {
+    id: string
     member_number: string
     name: string
     institution: string | null
@@ -335,7 +336,7 @@ export default function IntakeClient() {
         .select(
           `
           *,
-          customer:customers!tasks_customer_id_fkey (member_number, name, institution, prison_number, total_point_general, total_point_betting, normal_points, betting_points),
+          customer:customers!tasks_customer_id_fkey (id, member_number, name, institution, prison_number, total_point_general, total_point_betting, normal_points, betting_points),
           user:users!tasks_user_id_fkey (name, username),
           assigned_to_user:users!tasks_assigned_to_fkey (name, username),
           items:task_items(id, match_id, betting_choice, betting_odds, potential_win, category, description, amount)
@@ -527,7 +528,7 @@ export default function IntakeClient() {
         .from("tasks")
         .select(`
           *,
-          customer:customers(member_number, name, institution, prison_number),
+          customer:customers(id, member_number, name, institution, prison_number),
           user:users!tasks_user_id_fkey(name, username),
           assigned_to_user:users!tasks_assigned_to_fkey(name, username),
           items:task_items(*),
@@ -999,7 +1000,7 @@ export default function IntakeClient() {
           created_at,
           task:tasks!inner(
             ticket_no,
-            customer:customers(name, member_number, address)
+            customer:customers(id, name, member_number, address)
           )
         `)
         .eq("category", "inquiry")
