@@ -182,7 +182,31 @@ export default function IntakeClient() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [isBatchDeleteDialogOpen, setIsBatchDeleteDialogOpen] = useState(false)
   const [batchDeleting, setBatchDeleting] = useState(false)
-  
+
+  // 티켓 상세보기 탭
+  const [ticketDetailTab, setTicketDetailTab] = useState<"info" | "charge" | "deduct" | "betting">("info")
+
+  // 충전/입금 처리
+  const [chargeAmount, setChargeAmount] = useState("")
+  const [chargeCategory, setChargeCategory] = useState<"general" | "betting">("general")
+  const [chargeType, setChargeType] = useState<"charge" | "deposit">("charge")
+  const [chargeReason, setChargeReason] = useState("")
+  const [processingCharge, setProcessingCharge] = useState(false)
+
+  // 차감 처리 (도서/물품/대행)
+  const [deductItems, setDeductItems] = useState<Array<{ category: string; description: string; amount: number }>>([])
+  const [deductCategory, setDeductCategory] = useState<"book" | "goods" | "agency" | "other">("book")
+  const [deductDescription, setDeductDescription] = useState("")
+  const [deductAmount, setDeductAmount] = useState("")
+  const [processingDeduct, setProcessingDeduct] = useState(false)
+
+  // 배팅 처리
+  const [bettingAmount, setBettingAmount] = useState("")
+  const [bettingOdds, setBettingOdds] = useState("")
+  const [bettingMatch, setBettingMatch] = useState("")
+  const [bettingChoice, setBettingChoice] = useState("")
+  const [processingBetting, setProcessingBetting] = useState(false)
+
   const supabase = createClient()
   const { toast } = useToast()
 
