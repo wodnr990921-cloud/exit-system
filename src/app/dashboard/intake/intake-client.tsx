@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { getStatusLabel, getStatusColor, canEdit, canDelete } from "@/lib/ticket-status"
@@ -104,6 +104,7 @@ interface TaskComment {
 
 export default function IntakeClient() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [tasks, setTasks] = useState<Task[]>([])
   const [allTasks, setAllTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -153,16 +154,6 @@ export default function IntakeClient() {
   const [searchedCustomers, setSearchedCustomers] = useState<any[]>([])
   const [searchingCustomers, setSearchingCustomers] = useState(false)
 
-  // 작업 탭 및 장바구니 state
-  const [workTab, setWorkTab] = useState("reply") // reply, books, purchase, other
-  const [bookSearch, setBookSearch] = useState("")
-  const [books, setBooks] = useState<any[]>([])
-  const [searchingBooks, setSearchingBooks] = useState(false)
-  const [selectedBooks, setSelectedBooks] = useState<any[]>([])
-  const [purchaseItems, setPurchaseItems] = useState<Array<{ description: string; amount: number }>>([
-    { description: "", amount: 0 }
-  ])
-  const [otherInquiry, setOtherInquiry] = useState("")
 
   // 업무 유형 수정
   const [editingWorkType, setEditingWorkType] = useState(false)
@@ -217,6 +208,19 @@ export default function IntakeClient() {
     loadAllTasks()
     loadAllUsers()
   }, [])
+
+  // URL 파라미터로 티켓 자동 오픈
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket')
+    if (ticketId && allTasks.length > 0) {
+      const task = allTasks.find(t => t.id === ticketId)
+      if (task) {
+        handleTaskClick(task)
+        // URL에서 파라미터 제거 (깔끔한 URL 유지)
+        router.replace('/dashboard/intake')
+      }
+    }
+  }, [searchParams, allTasks])
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -910,31 +914,6 @@ export default function IntakeClient() {
     }
   }
 
-  // 도서 검색
-  const searchBooks = async (query: string) => {
-    if (query.length < 2) {
-      setBooks([])
-      return
-    }
-
-    setSearchingBooks(true)
-    try {
-      const { data, error } = await supabase
-        .from("inventory")
-        .select("*")
-        .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
-        .limit(10)
-
-      if (error) throw error
-
-      setBooks(data || [])
-    } catch (error: any) {
-      console.error("Error searching books:", error)
-      setBooks([])
-    } finally {
-      setSearchingBooks(false)
-    }
-  }
 
   // 티켓 삭제 (대표/관리자만)
   const handleDeleteTask = async () => {
@@ -1761,7 +1740,7 @@ export default function IntakeClient() {
                                 <SelectValue placeholder="담당자 선택" />
                               </SelectTrigger>
                               <SelectContent>
-                                {allUsers.map((user) => (
+                                {allUsers.filter(user => user.id && user.id.trim() !== '').map((user) => (
                                   <SelectItem key={user.id} value={user.id}>
                                     {user.name || user.username} ({user.role})
                                   </SelectItem>
@@ -2218,330 +2197,78 @@ export default function IntakeClient() {
                   </div>
                 )}
 
-                {/* 작업 추가 Tabs */}
+                {/* 답변 작성 */}
                 <div className="space-y-3 pt-4 border-t">
                   <div className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-md">
-                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 작업 추가</Label>
+                    <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📝 답변 작성</Label>
                   </div>
 
-                  <Tabs value={workTab} onValueChange={setWorkTab}>
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="reply">
-                        <MessageSquare className="w-4 h-4 mr-1" />
-                        답변
-                      </TabsTrigger>
-                      <TabsTrigger value="books">
-                        <Book className="w-4 h-4 mr-1" />
-                        도서
-                      </TabsTrigger>
-                      <TabsTrigger value="purchase">
-                        <ShoppingCart className="w-4 h-4 mr-1" />
-                        구매
-                      </TabsTrigger>
-                      <TabsTrigger value="other">
-                        <MessageSquare className="w-4 h-4 mr-1" />
-                        기타
-                      </TabsTrigger>
-                    </TabsList>
-
-                    {/* 답변 Tab */}
-                    <TabsContent value="reply" className="space-y-3">
-                      <Textarea
-                        placeholder="추가 답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
-                        value={taskReplyText}
-                        onChange={(e) => setTaskReplyText(e.target.value)}
-                        rows={3}
-                        className="border-gray-300 dark:border-gray-700"
-                      />
-                    </TabsContent>
-
-                    {/* 도서 Tab */}
-                    <TabsContent value="books" className="space-y-3">
-                      <div className="space-y-2">
-                        <Label>도서 검색</Label>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            placeholder="도서명, 저자명..."
-                            value={bookSearch}
-                            onChange={(e) => {
-                              setBookSearch(e.target.value)
-                              searchBooks(e.target.value)
-                            }}
-                            className="pl-9"
-                          />
-                        </div>
-
-                        {searchingBooks && (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-                          </div>
-                        )}
-
-                        {!searchingBooks && books.length > 0 && (
-                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 max-h-48 overflow-y-auto">
-                            {books.map((book) => (
-                              <button
-                                key={book.id}
-                                onClick={() => {
-                                  if (!selectedBooks.find((b) => b.id === book.id)) {
-                                    setSelectedBooks([...selectedBooks, book])
-                                  }
-                                  setBookSearch("")
-                                  setBooks([])
-                                }}
-                                className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                              >
-                                <div className="font-medium text-gray-900 dark:text-gray-50">{book.name}</div>
-                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                  {book.price?.toLocaleString()}원
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {selectedBooks.length > 0 && (
-                          <div className="space-y-2">
-                            {selectedBooks.map((book) => (
-                              <Card key={book.id}>
-                                <CardContent className="p-3 flex items-center justify-between">
-                                  <div>
-                                    <div className="font-medium text-gray-900 dark:text-gray-50">{book.name}</div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                      {book.price?.toLocaleString()}원
-                                    </div>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      setSelectedBooks(selectedBooks.filter((b) => b.id !== book.id))
-                                    }
-                                    className="text-gray-900 dark:text-gray-100"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-
-                    {/* 구매 Tab */}
-                    <TabsContent value="purchase" className="space-y-3">
-                      <div className="space-y-2">
-                        <Label>구매 항목</Label>
-                        {purchaseItems.map((item, index) => (
-                          <div key={index} className="flex gap-2">
-                            <Input
-                              placeholder="상품명"
-                              value={item.description}
-                              onChange={(e) => {
-                                const newItems = [...purchaseItems]
-                                newItems[index].description = e.target.value
-                                setPurchaseItems(newItems)
-                              }}
-                              className="flex-1"
-                            />
-                            <Input
-                              type="number"
-                              placeholder="금액"
-                              value={item.amount || ""}
-                              onChange={(e) => {
-                                const newItems = [...purchaseItems]
-                                newItems[index].amount = parseFloat(e.target.value) || 0
-                                setPurchaseItems(newItems)
-                              }}
-                              className="w-32"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (purchaseItems.length > 1) {
-                                  setPurchaseItems(purchaseItems.filter((_, i) => i !== index))
-                                }
-                              }}
-                              disabled={purchaseItems.length === 1}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPurchaseItems([...purchaseItems, { description: "", amount: 0 }])}
-                          className="w-full"
-                        >
-                          + 항목 추가
-                        </Button>
-                      </div>
-                    </TabsContent>
-
-                    {/* 기타 Tab */}
-                    <TabsContent value="other" className="space-y-3">
-                      <div className="space-y-2">
-                        <Label>기타 문의 내용</Label>
-                        <Textarea
-                          placeholder="기타 문의사항을 입력하세요..."
-                          value={otherInquiry}
-                          onChange={(e) => setOtherInquiry(e.target.value)}
-                          rows={6}
-                          className="border-gray-300 dark:border-gray-700"
-                        />
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                  <Textarea
+                    placeholder="답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
+                    value={taskReplyText}
+                    onChange={(e) => setTaskReplyText(e.target.value)}
+                    rows={4}
+                    className="border-gray-300 dark:border-gray-700"
+                  />
 
                   <Button
                     onClick={async () => {
                       if (!selectedTask || savingReply) return
 
-                      // Validate based on tab
+                      // Validate reply
                       const hasReply = taskReplyText.trim()
-                      const hasBooks = selectedBooks.length > 0
-                      const hasPurchase = purchaseItems.some(item => item.description.trim())
-                      const hasOther = otherInquiry.trim()
 
-                      if (!hasReply && !hasBooks && !hasPurchase && !hasOther) {
+                      if (!hasReply) {
                         toast({
                           variant: "destructive",
                           title: "오류",
-                          description: "작업 내용을 입력해주세요.",
+                          description: "답변을 입력해주세요.",
                         })
                         return
                       }
 
-                      console.log("💾 [작업 저장] 시작:", {
-                        taskId: selectedTask.id,
-                        hasReply,
-                        hasBooks,
-                        hasPurchase,
-                        hasOther
-                      })
-
                       setSavingReply(true)
                       try {
-                        const taskItems: any[] = []
-
-                        // Add reply
-                        if (hasReply) {
-                          taskItems.push({
+                        // Add reply as task item
+                        const { data: insertData, error } = await supabase
+                          .from("task_items")
+                          .insert([{
                             task_id: selectedTask.id,
                             category: "inquiry",
                             description: taskReplyText.trim(),
                             amount: 0,
                             status: "approved",
-                          })
-                        }
-
-                        // Add books
-                        for (const book of selectedBooks) {
-                          taskItems.push({
-                            task_id: selectedTask.id,
-                            category: "book",
-                            description: book.name,
-                            amount: book.price || 0,
-                            status: "pending",
-                          })
-                        }
-
-                        // Add purchase items
-                        for (const item of purchaseItems) {
-                          if (item.description.trim()) {
-                            taskItems.push({
-                              task_id: selectedTask.id,
-                              category: "product",
-                              description: item.description.trim(),
-                              amount: item.amount || 0,
-                              status: "pending",
-                            })
-                          }
-                        }
-
-                        // Add other inquiry
-                        if (hasOther) {
-                          taskItems.push({
-                            task_id: selectedTask.id,
-                            category: "inquiry",
-                            description: otherInquiry.trim(),
-                            amount: 0,
-                            status: "pending",
-                          })
-                        }
-
-                        // Insert all task items
-                        console.log("📝 task_items에 저장 중... (", taskItems.length, "개)")
-                        const { data: insertData, error } = await supabase
-                          .from("task_items")
-                          .insert(taskItems)
+                          }])
                           .select()
 
                         if (error) {
-                          console.error("❌ task_items 저장 실패:", error)
+                          console.error("❌ 답변 저장 실패:", error)
                           throw error
                         }
 
-                        console.log("✅ task_items 저장 성공:", insertData)
-
                         // Update task status to in_progress (only if pending)
-                        console.log("🔄 티켓 상태 업데이트 중...")
-                        console.log("📊 현재 티켓 상태:", selectedTask.status)
-                        
-                        let shouldUpdateStatus = false
-                        let newStatus = selectedTask.status
-                        
-                        // Only change status if currently pending
                         if (selectedTask.status === "pending") {
-                          shouldUpdateStatus = true
-                          newStatus = "in_progress"
-                          console.log("✅ 상태 변경: pending → in_progress")
-                        } else {
-                          console.log("ℹ️ 상태 유지:", selectedTask.status)
-                        }
-                        
-                        if (shouldUpdateStatus) {
-                          const { error: updateError } = await supabase
+                          await supabase
                             .from("tasks")
-                            .update({ 
-                              status: newStatus,
+                            .update({
+                              status: "in_progress",
                               updated_at: new Date().toISOString()
                             })
                             .eq("id", selectedTask.id)
-
-                          if (updateError) {
-                            console.warn("⚠️ 티켓 상태 업데이트 실패:", updateError)
-                          } else {
-                            console.log("✅ 티켓 상태 업데이트 성공")
-                          }
                         }
 
-                        // Clear all inputs and show success
+                        // Clear input and show success
                         setTaskReplyText("")
-                        setSelectedBooks([])
-                        setPurchaseItems([{ description: "", amount: 0 }])
-                        setOtherInquiry("")
-                        
-                        // Show prominent success message
-                        toast({
-                          title: "✅ 작업 저장 완료!",
-                          description: `${taskItems.length}개의 작업이 성공적으로 저장되었습니다.`,
-                        })
-                        
-                        // Also log to console for visibility
-                        console.log("🎉 [작업 저장] 성공 메시지 표시됨")
-                        console.log("💾 저장된 작업:", taskItems)
 
-                        // Refresh saved replies immediately without full page reload
-                        console.log("🔄 답변 목록 새로고침 중...")
+                        toast({
+                          title: "✅ 답변 저장 완료!",
+                          description: "답변이 성공적으로 저장되었습니다.",
+                        })
+
+                        // Refresh saved replies
                         if (selectedTask) {
                           await loadSavedReplies(selectedTask.id)
                         }
-                        console.log("✅ 답변 저장 및 새로고침 완료!")
                       } catch (error: any) {
                         console.error("❌ [답변 저장] 실패:", error)
                         toast({
@@ -2560,6 +2287,16 @@ export default function IntakeClient() {
                     {savingReply ? "💾 저장 중..." : "💾 작업 저장"}
                   </Button>
                 </div>
+
+                {/* 업무 처리 (회원이 있는 경우만) */}
+                {selectedTask?.customer?.id && (
+                  <div className="border-t pt-4 space-y-4">
+                    <div className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">💼 업무 처리</Label>
+                    </div>
+                    <TicketDetailTabs task={selectedTask} onUpdate={loadAllTasks} currentUserRole={currentUser?.role} />
+                  </div>
+                )}
 
                 <div className="border-t pt-4 space-y-4">
                   <div className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
@@ -2649,14 +2386,6 @@ export default function IntakeClient() {
                     </Button>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* 업무 처리 탭 (회원이 있는 경우만) */}
-            {selectedTask?.customer?.id && (
-              <div className="mt-6 border-t pt-6">
-                <h3 className="text-lg font-semibold mb-4">💼 업무 처리</h3>
-                <TicketDetailTabs task={selectedTask} onUpdate={loadAllTasks} currentUserRole={currentUser?.role} />
               </div>
             )}
 
