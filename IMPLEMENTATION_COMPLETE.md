@@ -532,7 +532,60 @@ npm run build && npm run start
 
 ---
 
+---
+
+## 🔄 최근 업데이트 (2026-01-29)
+
+### UI 간소화 및 워크플로우 통일 ✅
+
+**작업 내용**:
+1. **티켓 상세 페이지 (Intake) 개선**
+   - "작업 추가" 섹션 간소화: 답변 작성만 남김 (도서/구매/기타 탭 제거)
+   - "업무 처리" 섹션을 "작업 추가"와 "댓글" 사이로 이동
+   - 업무 처리는 TicketDetailTabs 컴포넌트에서 통합 관리
+
+2. **신규 티켓 작성 (Reception) 간소화**
+   - 장바구니 시스템 제거 (929줄 → 456줄, 52% 감소)
+   - 단순 폼: 회원 선택 + 제목 + 설명 + 업무 유형
+   - 티켓 생성 후 Intake 페이지로 자동 리디렉션
+   - 상세 업무 처리는 Intake 페이지에서 진행
+
+3. **우편실 배정 (Mailroom) 간소화**
+   - 복잡한 장바구니 기능 제거 (2141줄 → 817줄, 62% 감소)
+   - 핵심 기능만 유지: 편지 선택, OCR 조회, 회원 매칭, 담당자 배정
+   - 티켓 생성 후 Intake 페이지로 자동 리디렉션
+
+4. **티켓 생성 API 개선**
+   - 빈 items 배열 허용 (나중에 업무 처리에서 추가 가능)
+   - title, description, assigned_to 파라미터 추가 지원
+   - task_items 생성을 조건부로 변경
+   - AI 요약 생성 조건부 처리
+
+**주요 개선 사항**:
+- 전체 코드 라인 수 59% 감소 (3070줄 → 1273줄)
+- 통일된 워크플로우: 간단한 생성 → Intake 페이지 → 상세 처리
+- URL 파라미터를 통한 자동 티켓 열기 (`?ticket=ID`)
+- 사용자 경험 개선: 단순하고 직관적인 흐름
+
+**변경된 파일**:
+- `src/app/dashboard/intake/intake-client.tsx` (UI 재구성)
+- `src/app/dashboard/reception/reception-client.tsx` (전면 간소화)
+- `src/app/dashboard/mailroom/mailroom-client.tsx` (전면 간소화)
+- `src/app/api/tickets/create/route.ts` (빈 배열 지원)
+
+**백업 파일**:
+- `mailroom-client.tsx.backup` (원본 2141줄)
+- `mailroom-client.tsx.old` (이전 버전)
+
+**Git 커밋**:
+1. `Intake 페이지 UI 개선: 작업 추가 간소화 및 업무 처리 재배치`
+2. `Reception 페이지 간소화: 장바구니 제거 및 Intake 연동`
+3. `Mailroom 페이지 간소화: 장바구니 제거 및 Intake 연동`
+4. `티켓 생성 API 수정: 빈 items 배열 허용 및 title/description 지원`
+
+---
+
 **작성일**: 2026-01-28
-**마지막 업데이트**: 2026-01-28
-**버전**: 1.0.0
+**마지막 업데이트**: 2026-01-29
+**버전**: 1.1.0
 
