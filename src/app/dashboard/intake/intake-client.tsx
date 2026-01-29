@@ -2204,11 +2204,11 @@ export default function IntakeClient() {
                   </div>
 
                   <Textarea
-                    placeholder="답변을 작성하세요. (티켓에 답변으로 저장됩니다)"
+                    placeholder="답변을 작성하세요. (글자수 제한 없음)"
                     value={taskReplyText}
                     onChange={(e) => setTaskReplyText(e.target.value)}
-                    rows={4}
-                    className="border-gray-300 dark:border-gray-700"
+                    rows={10}
+                    className="border-gray-300 dark:border-gray-700 min-h-[200px]"
                   />
 
                   <Button
