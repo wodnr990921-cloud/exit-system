@@ -34,7 +34,7 @@ export default function QAClient() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // 답변 일괄 출력
+  // 답변 일괄 출력 (회원별 A4 용지 배정)
   const handleBatchPrintReplies = async () => {
     try {
       const { data: replies, error } = await supabase
@@ -45,7 +45,7 @@ export default function QAClient() {
           created_at,
           task:tasks!inner(
             ticket_no,
-            customer:customers(name, member_number, address)
+            customer:customers(id, name, member_number, address)
           )
         `)
         .eq("category", "답변")
@@ -59,6 +59,16 @@ export default function QAClient() {
         setTimeout(() => setError(null), 3000)
         return
       }
+
+      // 회원별로 그룹화
+      const replyByCustomer = new Map<string, any[]>()
+      replies.forEach((reply: any) => {
+        const customerId = reply.task?.customer?.id || "unknown"
+        if (!replyByCustomer.has(customerId)) {
+          replyByCustomer.set(customerId, [])
+        }
+        replyByCustomer.get(customerId)?.push(reply)
+      })
 
       const printWindow = window.open("", "_blank")
       if (!printWindow) {
@@ -74,39 +84,117 @@ export default function QAClient() {
           <meta charset="UTF-8">
           <title>답변 일괄 출력</title>
           <style>
-            @media print {
-              @page { margin: 1cm; }
-              .page-break { page-break-after: always; }
+            @page {
+              size: A4;
+              margin: 15mm;
             }
-            body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; }
-            h1 { text-align: center; margin-bottom: 30px; }
-            .reply-item { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-            .recipient-address { font-size: 20px; font-weight: bold; margin-bottom: 20px; padding: 15px; background: white; border: 2px solid #333; border-radius: 4px; text-align: left; line-height: 1.6; }
-            .reply-header { font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 2px solid #333; }
-            .reply-content { line-height: 1.8; white-space: pre-wrap; }
-            .reply-footer { margin-top: 10px; text-align: right; color: #666; font-size: 0.9em; }
+            @media print {
+              .customer-page {
+                page-break-after: always;
+                min-height: 250mm; /* A4 높이 - 여백 */
+              }
+              .customer-page:last-child {
+                page-break-after: auto;
+              }
+            }
+            body {
+              font-family: 'Malgun Gothic', sans-serif;
+              margin: 0;
+              padding: 0;
+            }
+            .customer-page {
+              padding: 10mm;
+              box-sizing: border-box;
+            }
+            .recipient-header {
+              border: 2px solid #000;
+              padding: 10px 15px;
+              margin-bottom: 20px;
+              background: #f9f9f9;
+            }
+            .recipient-address {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .recipient-info {
+              font-size: 14px;
+              color: #666;
+            }
+            .reply-section {
+              margin-bottom: 20px;
+              padding: 15px;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              background: white;
+            }
+            .reply-header {
+              font-weight: bold;
+              font-size: 12px;
+              color: #555;
+              margin-bottom: 10px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid #ddd;
+            }
+            .reply-content {
+              line-height: 1.8;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              font-size: 13px;
+            }
+            .reply-footer {
+              margin-top: 10px;
+              text-align: right;
+              font-size: 11px;
+              color: #999;
+            }
+            .page-footer {
+              margin-top: 30px;
+              text-align: center;
+              font-size: 11px;
+              color: #999;
+              border-top: 1px solid #ddd;
+              padding-top: 10px;
+            }
           </style>
         </head>
         <body>
-          <h1>📮 문의답변 일괄 출력</h1>
-          ${replies
-            .map(
-              (reply: any, index: number) => `
-            <div class="reply-item ${index < replies.length - 1 ? "page-break" : ""}">
-              <div class="recipient-address">
-                ${reply.task?.customer?.address || "주소 없음"} ${reply.task?.customer?.name || "미등록"}
-              </div>
-              <div class="reply-header">
-                티켓: ${reply.task?.ticket_no || "미지정"} |
-                회원: ${reply.task?.customer?.name || "미지정"} (${reply.task?.customer?.member_number || ""})
-              </div>
-              <div class="reply-content">${reply.description}</div>
-              <div class="reply-footer">
-                작성일시: ${new Date(reply.created_at).toLocaleString("ko-KR")}
-              </div>
-            </div>
-          `
-            )
+          ${Array.from(replyByCustomer.entries())
+            .map(([customerId, customerReplies], index) => {
+              const firstReply = customerReplies[0]
+              const customer = firstReply.task?.customer
+
+              return `
+                <div class="customer-page">
+                  <div class="recipient-header">
+                    <div class="recipient-address">
+                      ${customer?.address || "주소 없음"}
+                    </div>
+                    <div class="recipient-info">
+                      ${customer?.name || "미등록"} (${customer?.member_number || ""})
+                    </div>
+                  </div>
+
+                  ${customerReplies
+                    .map((reply: any) => `
+                      <div class="reply-section">
+                        <div class="reply-header">
+                          티켓: ${reply.task?.ticket_no || "미지정"}
+                        </div>
+                        <div class="reply-content">${reply.description || ""}</div>
+                        <div class="reply-footer">
+                          작성일시: ${new Date(reply.created_at).toLocaleString("ko-KR")}
+                        </div>
+                      </div>
+                    `)
+                    .join("")}
+
+                  <div class="page-footer">
+                    ${customer?.name || "미등록"} - ${customerReplies.length}개 답변
+                  </div>
+                </div>
+              `
+            })
             .join("")}
         </body>
         </html>
@@ -119,7 +207,7 @@ export default function QAClient() {
         printWindow.print()
       }, 500)
 
-      setSuccess(`${replies.length}개의 답변을 출력 중입니다.`)
+      setSuccess(`${replyByCustomer.size}명의 회원, ${replies.length}개 답변을 출력 중입니다.`)
       setTimeout(() => setSuccess(null), 3000)
     } catch (error: any) {
       console.error("Batch print error:", error)

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Trash2, DollarSign, ShoppingCart, Trophy } from "lucide-react"
+import { Plus, Trash2, DollarSign, ShoppingCart, Trophy, Edit3 } from "lucide-react"
 
 interface Task {
   id: string
@@ -28,15 +29,27 @@ interface Task {
     total_point_general?: number
     total_point_betting?: number
   } | null
+  items?: Array<{
+    id: string
+    match_id?: string | null
+    betting_choice?: string | null
+    betting_odds?: number | null
+    potential_win?: number | null
+    category?: string
+    description?: string
+    amount?: number
+  }>
 }
 
 interface TicketDetailTabsProps {
   task: Task
   onUpdate: () => void
+  currentUserRole?: string
 }
 
-export default function TicketDetailTabs({ task, onUpdate }: TicketDetailTabsProps) {
+export default function TicketDetailTabs({ task, onUpdate, currentUserRole }: TicketDetailTabsProps) {
   const { toast } = useToast()
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState("charge")
 
   // 충전/입금 처리
@@ -51,6 +64,23 @@ export default function TicketDetailTabs({ task, onUpdate }: TicketDetailTabsPro
   const [deductCategory, setDeductCategory] = useState<"book" | "goods" | "agency" | "other">("book")
   const [deductDescription, setDeductDescription] = useState("")
   const [deductAmount, setDeductAmount] = useState("")
+
+  // 배팅 처리
+  const [matches, setMatches] = useState<any[]>([])
+  const [loadingMatches, setLoadingMatches] = useState(false)
+  const [selectedMatch, setSelectedMatch] = useState("")
+  const [bettingChoice, setBettingChoice] = useState("")
+  const [bettingAmount, setBettingAmount] = useState("")
+  const [bettingOdds, setBettingOdds] = useState("")
+  const [processingBetting, setProcessingBetting] = useState(false)
+  const [editingOdds, setEditingOdds] = useState<string | null>(null)
+  const [newOdds, setNewOdds] = useState("")
+
+  useEffect(() => {
+    if (activeTab === "betting") {
+      loadMatches()
+    }
+  }, [activeTab])
 
   const handleProcessCharge = async () => {
     if (!chargeAmount || parseFloat(chargeAmount) <= 0) {
@@ -170,6 +200,121 @@ export default function TicketDetailTabs({ task, onUpdate }: TicketDetailTabsPro
       })
     } finally {
       setProcessingCharge(false)
+    }
+  }
+
+  const loadMatches = async () => {
+    setLoadingMatches(true)
+    try {
+      const { data, error } = await supabase
+        .from("sports_matches")
+        .select("*")
+        .eq("status", "scheduled")
+        .order("match_date", { ascending: true })
+        .limit(20)
+
+      if (error) throw error
+      setMatches(data || [])
+    } catch (error: any) {
+      console.error("Load matches error:", error)
+    } finally {
+      setLoadingMatches(false)
+    }
+  }
+
+  const handleProcessBetting = async () => {
+    if (!selectedMatch || !bettingChoice || !bettingAmount || parseFloat(bettingAmount) <= 0) {
+      toast({
+        title: "오류",
+        description: "모든 정보를 입력하세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setProcessingBetting(true)
+    try {
+      const response = await fetch(`/api/tickets/${task.id}/process-betting`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          match_id: selectedMatch,
+          betting_choice: bettingChoice,
+          betting_amount: parseFloat(bettingAmount),
+          betting_odds: bettingOdds ? parseFloat(bettingOdds) : null,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "배팅 처리에 실패했습니다.")
+      }
+
+      toast({
+        title: "성공",
+        description: result.message,
+      })
+
+      // 초기화
+      setSelectedMatch("")
+      setBettingChoice("")
+      setBettingAmount("")
+      setBettingOdds("")
+      onUpdate()
+    } catch (error: any) {
+      console.error("Betting error:", error)
+      toast({
+        title: "오류",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingBetting(false)
+    }
+  }
+
+  const handleUpdateOdds = async (taskItemId: string) => {
+    if (!newOdds || parseFloat(newOdds) <= 0) {
+      toast({
+        title: "오류",
+        description: "배당을 입력하세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/tickets/${task.id}/update-betting-odds`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_item_id: taskItemId,
+          betting_odds: parseFloat(newOdds),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "배당 수정에 실패했습니다.")
+      }
+
+      toast({
+        title: "성공",
+        description: result.message,
+      })
+
+      setEditingOdds(null)
+      setNewOdds("")
+      onUpdate()
+    } catch (error: any) {
+      console.error("Update odds error:", error)
+      toast({
+        title: "오류",
+        description: error.message,
+        variant: "destructive",
+      })
     }
   }
 
@@ -368,10 +513,180 @@ export default function TicketDetailTabs({ task, onUpdate }: TicketDetailTabsPro
       {/* 배팅 탭 */}
       <TabsContent value="betting" className="space-y-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8 text-gray-500">
-              <Trophy className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>배팅 처리 기능은 준비 중입니다.</p>
+          <CardContent className="pt-6 space-y-4">
+            {task.customer && (
+              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                <p className="text-sm">
+                  <span className="font-semibold">배팅 포인트:</span>{" "}
+                  {task.customer.total_point_betting?.toLocaleString() || 0}P
+                </p>
+              </div>
+            )}
+
+            {/* 기존 배팅 목록 */}
+            {task.items && task.items.filter((item) => item.category === "game").length > 0 && (
+              <div className="space-y-2">
+                <Label>등록된 배팅</Label>
+                <div className="border rounded-md divide-y max-h-[200px] overflow-y-auto">
+                  {task.items
+                    .filter((item) => item.category === "game")
+                    .map((item) => (
+                      <div key={item.id} className="p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm">{item.betting_choice}</div>
+                            <div className="text-xs text-gray-500">배팅: {item.amount?.toLocaleString()}P</div>
+                          </div>
+                          <div className="text-right">
+                            {editingOdds === item.id ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  placeholder="배당"
+                                  value={newOdds}
+                                  onChange={(e) => setNewOdds(e.target.value)}
+                                  className="w-20 h-8"
+                                  step="0.01"
+                                />
+                                <Button size="sm" onClick={() => handleUpdateOdds(item.id)} className="h-8">
+                                  저장
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingOdds(null)}
+                                  className="h-8"
+                                >
+                                  취소
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {item.betting_odds ? (
+                                  <>
+                                    <div className="text-sm">
+                                      <span className="font-semibold text-blue-600">
+                                        {item.betting_odds}배
+                                      </span>
+                                      <div className="text-xs text-gray-500">
+                                        예상: {item.potential_win?.toLocaleString()}P
+                                      </div>
+                                    </div>
+                                    {currentUserRole && ["ceo", "admin", "operator"].includes(currentUserRole) && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setEditingOdds(item.id)
+                                          setNewOdds(item.betting_odds?.toString() || "")
+                                        }}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Edit3 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-xs text-gray-500">배당 미설정</span>
+                                    {currentUserRole && ["ceo", "admin", "operator"].includes(currentUserRole) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setEditingOdds(item.id)
+                                          setNewOdds("")
+                                        }}
+                                        className="h-8"
+                                      >
+                                        배당 설정
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t pt-4">
+              <Label className="mb-3 block">새 배팅 추가</Label>
+
+              {loadingMatches ? (
+                <div className="text-center py-4 text-gray-500">경기 목록 로딩 중...</div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <Label>경기 선택</Label>
+                    <Select value={selectedMatch} onValueChange={setSelectedMatch}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="경기를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {matches.length === 0 ? (
+                          <div className="p-2 text-sm text-gray-500">진행 중인 경기가 없습니다</div>
+                        ) : (
+                          matches.map((match) => (
+                            <SelectItem key={match.id} value={match.id}>
+                              {match.home_team} vs {match.away_team}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>선택 (승/무/패)</Label>
+                      <Input
+                        placeholder="예: 홈승, 원정승"
+                        value={bettingChoice}
+                        onChange={(e) => setBettingChoice(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>배팅 금액 (P)</Label>
+                      <Input
+                        type="number"
+                        placeholder="배팅 금액"
+                        value={bettingAmount}
+                        onChange={(e) => setBettingAmount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {currentUserRole && ["ceo", "admin", "operator"].includes(currentUserRole) && (
+                    <div>
+                      <Label>배당 (관리자만 설정 가능, 선택사항)</Label>
+                      <Input
+                        type="number"
+                        placeholder="배당 (예: 1.95)"
+                        value={bettingOdds}
+                        onChange={(e) => setBettingOdds(e.target.value)}
+                        step="0.01"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        * 접수 시 배당을 비워두고, 나중에 관리자가 설정할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleProcessBetting}
+                    disabled={processingBetting || !selectedMatch}
+                    className="w-full"
+                  >
+                    {processingBetting ? "처리 중..." : "배팅 추가"}
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

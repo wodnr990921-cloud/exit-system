@@ -2655,7 +2655,7 @@ export default function IntakeClient() {
             {selectedTask.customer && selectedTask.customer.id && (
               <div className="mt-6 border-t pt-6">
                 <h3 className="text-lg font-semibold mb-4">💼 업무 처리</h3>
-                <TicketDetailTabs task={selectedTask} onUpdate={loadAllTasks} />
+                <TicketDetailTabs task={selectedTask} onUpdate={loadAllTasks} currentUserRole={currentUser?.role} />
               </div>
             )}
 
