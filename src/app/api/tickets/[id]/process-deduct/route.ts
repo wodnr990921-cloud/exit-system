@@ -30,7 +30,7 @@ export async function POST(
     // 티켓 정보 조회
     const { data: task, error: taskError } = await supabase
       .from("tasks")
-      .select("id, customer_id, member_id, ticket_no")
+      .select("id, customer_id, member_id, ticket_no, status")
       .eq("id", taskId)
       .single()
 
