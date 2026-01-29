@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { getStatusLabel, getStatusColor, canEdit, canDelete } from "@/lib/ticket-status"
 import { hasMinimumRole } from "@/lib/permissions"
+import TicketDetailTabs from "@/components/ticket-detail-tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -2647,6 +2648,14 @@ export default function IntakeClient() {
                     </Button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* 업무 처리 탭 (회원이 있는 경우만) */}
+            {selectedTask.customer && selectedTask.customer.id && (
+              <div className="mt-6 border-t pt-6">
+                <h3 className="text-lg font-semibold mb-4">💼 업무 처리</h3>
+                <TicketDetailTabs task={selectedTask} onUpdate={loadAllTasks} />
               </div>
             )}
 
