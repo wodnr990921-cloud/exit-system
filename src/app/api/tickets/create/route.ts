@@ -109,9 +109,10 @@ ${itemsText}
           ai_summary = summaryData.choices[0]?.message?.content?.trim() || ""
         }
       }
-    } catch (error) {
-      console.error("Error generating summary:", error)
-      // 요약 실패해도 티켓은 생성
+      } catch (error) {
+        console.error("Error generating summary:", error)
+        // 요약 실패해도 티켓은 생성
+      }
     }
 
     // 트랜잭션으로 tasks와 task_items 저장
