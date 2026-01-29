@@ -347,24 +347,20 @@ export default function MailroomClient() {
     }
   }
 
-  const handleLetterClick = (letter: Letter) => {
-    // 카드 클릭 시 확대 팝업 열기
-    setSelectedLetter(letter)
-    setSelectedLetters([letter])
-    setShowDialog(true)
-    resetForm()
-  }
-
-  const toggleLetterSelection = (letter: Letter, e: React.MouseEvent) => {
-    e.stopPropagation()
-    
+  const handleLetterClick = (letter: Letter, e: React.MouseEvent) => {
+    // 카드 클릭 시 체크박스 토글
     const isSelected = selectedLetters.some((l) => l.id === letter.id)
-    
+
     if (isSelected) {
       setSelectedLetters(selectedLetters.filter((l) => l.id !== letter.id))
     } else {
       setSelectedLetters([...selectedLetters, letter])
     }
+  }
+
+  const toggleLetterSelection = (letter: Letter, e: React.MouseEvent) => {
+    e.stopPropagation()
+    handleLetterClick(letter, e)
   }
 
   const handleBatchAssignment = () => {
@@ -1379,7 +1375,7 @@ export default function MailroomClient() {
                       ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700"
                       : "border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600"
                   }`}
-                  onClick={() => handleLetterClick(letter)}
+                  onClick={(e) => handleLetterClick(letter, e)}
                 >
                 <CardContent className="p-6">
                     <div className="flex gap-6 items-start">
