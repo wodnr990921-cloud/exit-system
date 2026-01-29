@@ -372,7 +372,7 @@ export default function IntakeClient() {
             .from("returns")
             .select("return_reason, return_date, refund_status")
             .eq("task_id", task.id)
-            .single()
+            .maybeSingle()
 
           // 요약 생성
           let summary = ""
@@ -2653,7 +2653,7 @@ export default function IntakeClient() {
             )}
 
             {/* 업무 처리 탭 (회원이 있는 경우만) */}
-            {selectedTask.customer && selectedTask.customer.id && (
+            {selectedTask?.customer?.id && (
               <div className="mt-6 border-t pt-6">
                 <h3 className="text-lg font-semibold mb-4">💼 업무 처리</h3>
                 <TicketDetailTabs task={selectedTask} onUpdate={loadAllTasks} currentUserRole={currentUser?.role} />
