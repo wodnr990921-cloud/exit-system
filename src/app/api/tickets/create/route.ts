@@ -15,21 +15,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { member_id, items, work_type: providedWorkType } = await request.json()
+    const { member_id, items, work_type: providedWorkType, title, description, assigned_to } = await request.json()
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "최소 1개 이상의 아이템이 필요합니다." }, { status: 400 })
-    }
+    // items가 없거나 비어있어도 허용 (나중에 추가 가능)
+    const itemsArray = items && Array.isArray(items) ? items : []
 
     // 총액 계산
-    const total_amount = items.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
+    const total_amount = itemsArray.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
 
     // 업무 유형 결정: 전달받은 값 우선, 없으면 자동 결정
     let work_type = providedWorkType || ""
 
-    if (!work_type) {
-      // 자동 결정
-      const categories = new Set(items.map((item: any) => item.category))
+    if (!work_type && itemsArray.length > 0) {
+      // 자동 결정 (items가 있을 때만)
+      const categories = new Set(itemsArray.map((item: any) => item.category))
 
       if (categories.size === 1) {
         // 단일 카테고리
@@ -55,31 +54,32 @@ export async function POST(request: NextRequest) {
     const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase()
     const ticket_no = `T${dateStr}-${randomStr}`
 
-    // OpenAI로 요약 생성
+    // OpenAI로 요약 생성 (items가 있을 때만)
     let ai_summary = ""
-    try {
-      const openaiApiKey = process.env.OPENAI_API_KEY
-      if (openaiApiKey) {
-        // 비용 절감: 필요한 필드만 포함 (category, description, amount)
-        const itemsText = items
-          .map((item: any) => {
-            const categoryNames: Record<string, string> = {
-              book: "도서",
-              game: "경기",
-              goods: "물품",
-              inquiry: "문의",
-              complaint: "민원",
-              other: "기타",
-              complex: "복합",
-            }
-            // 최소한의 정보만 포함
-            return JSON.stringify({
-              category: categoryNames[item.category] || item.category,
-              description: item.description || "",
-              amount: item.amount || 0,
+    if (itemsArray.length > 0) {
+      try {
+        const openaiApiKey = process.env.OPENAI_API_KEY
+        if (openaiApiKey) {
+          // 비용 절감: 필요한 필드만 포함 (category, description, amount)
+          const itemsText = itemsArray
+            .map((item: any) => {
+              const categoryNames: Record<string, string> = {
+                book: "도서",
+                game: "경기",
+                goods: "물품",
+                inquiry: "문의",
+                complaint: "민원",
+                other: "기타",
+                complex: "복합",
+              }
+              // 최소한의 정보만 포함
+              return JSON.stringify({
+                category: categoryNames[item.category] || item.category,
+                description: item.description || "",
+                amount: item.amount || 0,
+              })
             })
-          })
-          .join("\n")
+            .join("\n")
 
         const summaryResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -127,8 +127,9 @@ ${itemsText}
           work_type: work_type, // 업무 유형 자동 설정
           ai_summary: ai_summary || null,
           status: "received", // 접수 상태로 시작
-          title: `티켓 ${ticket_no}`,
-          description: ai_summary || "",
+          title: title || `티켓 ${ticket_no}`,
+          description: description || ai_summary || "",
+          assigned_to: assigned_to || null,
         },
       ])
       .select()
@@ -139,22 +140,24 @@ ${itemsText}
       return NextResponse.json({ error: "티켓 생성에 실패했습니다.", details: taskError.message }, { status: 500 })
     }
 
-    // task_items 생성
-    const taskItems = items.map((item: any) => ({
-      task_id: taskData.id,
-      category: item.category,
-      description: item.description,
-      amount: item.amount || 0,
-      status: "pending",
-    }))
+    // task_items 생성 (items가 있는 경우만)
+    if (itemsArray.length > 0) {
+      const taskItems = itemsArray.map((item: any) => ({
+        task_id: taskData.id,
+        category: item.category,
+        description: item.description,
+        amount: item.amount || 0,
+        status: "pending",
+      }))
 
-    const { error: itemsError } = await supabase.from("task_items").insert(taskItems)
+      const { error: itemsError } = await supabase.from("task_items").insert(taskItems)
 
-    if (itemsError) {
-      console.error("Error creating task items:", itemsError)
-      // 롤백: task 삭제
-      await supabase.from("tasks").delete().eq("id", taskData.id)
-      return NextResponse.json({ error: "아이템 저장에 실패했습니다.", details: itemsError.message }, { status: 500 })
+      if (itemsError) {
+        console.error("Error creating task items:", itemsError)
+        // 롤백: task 삭제
+        await supabase.from("tasks").delete().eq("id", taskData.id)
+        return NextResponse.json({ error: "아이템 저장에 실패했습니다.", details: itemsError.message }, { status: 500 })
+      }
     }
 
     // 포인트 동결 처리 (회원이 있는 경우)
@@ -176,7 +179,7 @@ ${itemsText}
         let generalAmount = 0
         let bettingAmount = 0
 
-        items.forEach((item: any) => {
+        itemsArray.forEach((item: any) => {
           const amount = item.amount || 0
           if (item.category === "game") {
             // 경기는 배팅 포인트
