@@ -247,30 +247,26 @@ export default function SportsOpsClient() {
 
       const data = await response.json()
 
-      if (data.success) {
-        toast({
-          title: "✅ 경기 추가 완료",
-          description: `${newGame.home_team} vs ${newGame.away_team} 경기가 추가되었습니다.`,
-        })
-        setShowAddGameDialog(false)
-        setNewGame({
-          home_team: "",
-          away_team: "",
-          game_date: "",
-          league: "기타",
-          home_odds: "",
-          draw_odds: "",
-          away_odds: "",
-          location: "",
-        })
-        await loadAllData()
-      } else {
-        toast({
-          title: "경기 추가 실패",
-          description: data.error || "경기를 추가할 수 없습니다.",
-          variant: "destructive",
-        })
+      if (!response.ok) {
+        throw new Error(data.error || "경기 추가에 실패했습니다.")
       }
+
+      toast({
+        title: "✅ 경기 추가 완료",
+        description: `${newGame.home_team} vs ${newGame.away_team} 경기가 추가되었습니다.`,
+      })
+      setShowAddGameDialog(false)
+      setNewGame({
+        home_team: "",
+        away_team: "",
+        game_date: "",
+        league: "기타",
+        home_odds: "",
+        draw_odds: "",
+        away_odds: "",
+        location: "",
+      })
+      await loadAllData()
     } catch (error) {
       console.error("Add game error:", error)
       toast({
