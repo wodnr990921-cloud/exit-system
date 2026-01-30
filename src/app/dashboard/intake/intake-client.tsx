@@ -179,6 +179,11 @@ export default function IntakeClient() {
   // 티켓 상세보기 탭
   const [ticketDetailTab, setTicketDetailTab] = useState<"info" | "charge" | "deduct" | "betting">("info")
 
+  // 티켓 상태 변경
+  const [editingStatus, setEditingStatus] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState<string>("")
+  const [savingStatus, setSavingStatus] = useState(false)
+
   // 충전/입금 처리
   const [chargeAmount, setChargeAmount] = useState("")
   const [chargeCategory, setChargeCategory] = useState<"general" | "betting">("general")
@@ -485,6 +490,62 @@ export default function IntakeClient() {
       })
     } finally {
       setSavingWorkType(false)
+    }
+  }
+
+  const handleUpdateStatus = async () => {
+    if (!selectedTask || !selectedStatus) {
+      toast({
+        title: "오류",
+        description: "상태를 선택하세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSavingStatus(true)
+    try {
+      const response = await fetch(`/api/tickets/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: selectedTask.id,
+          status: selectedStatus
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "상태 수정에 실패했습니다.")
+      }
+
+      toast({
+        title: "✅ 성공",
+        description: result.message || "티켓 상태가 수정되었습니다.",
+      })
+
+      // 티켓 목록 새로고침
+      await loadAllTasks()
+
+      // 선택된 티켓 업데이트
+      if (selectedTask) {
+        setSelectedTask({
+          ...selectedTask,
+          status: selectedStatus,
+        })
+      }
+
+      setEditingStatus(false)
+    } catch (error: any) {
+      console.error("Error updating status:", error)
+      toast({
+        title: "오류",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setSavingStatus(false)
     }
   }
 
@@ -1635,12 +1696,60 @@ export default function IntakeClient() {
                         <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md mb-1">
                           <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📌 상태</Label>
                         </div>
-                        <div className="mt-1">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${getStatusColor(selectedTask.status)}`}>
-                            {getStatusLabel(selectedTask.status)}
-                          </span>
-                        </div>
-                      </div>
+                        {editingStatus ? (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="상태 선택" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="received">접수</SelectItem>
+                                <SelectItem value="processing">처리중</SelectItem>
+                                <SelectItem value="processed">처리완료</SelectItem>
+                                <SelectItem value="closed">마감</SelectItem>
+                                <SelectItem value="cancelled">취소</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              onClick={handleUpdateStatus}
+                              disabled={savingStatus}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              {savingStatus ? "저장 중..." : "저장"}
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setEditingStatus(false)
+                                setSelectedStatus(selectedTask.status || "")
+                              }}
+                              disabled={savingStatus}
+                              size="sm"
+                              variant="outline"
+                            >
+                              취소
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${getStatusColor(selectedTask.status)}`}>
+                              {getStatusLabel(selectedTask.status)}
+                            </span>
+                            {currentUser && hasMinimumRole(currentUser.role, "operator") && (
+                              <Button
+                                onClick={() => {
+                                  setEditingStatus(true)
+                                  setSelectedStatus(selectedTask.status || "")
+                                }}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs"
+                              >
+                                수정
+                              </Button>
+                            )}
+                          </div>
+                        )}
                     </div>
 
                     {/* 업무 유형 수정 */}
