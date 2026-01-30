@@ -98,6 +98,15 @@ export default function ClosingClient() {
   const [newCustomerPhone, setNewCustomerPhone] = useState("")
   const [newCustomerAddress, setNewCustomerAddress] = useState("")
 
+  // 티켓 상태 변경
+  const [editingStatus, setEditingStatus] = useState(false)
+  const [selectedStatus, setSelectedStatus] = useState<string>("")
+  const [savingStatus, setSavingStatus] = useState(false)
+
+  // 일괄 마감
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
+  const [batchClosing, setBatchClosing] = useState(false)
+
   // 답변 작성 관련 state
   const [taskReplyText, setTaskReplyText] = useState("")
 
@@ -283,6 +292,133 @@ export default function ClosingClient() {
   const formatAmount = (amount: number | null) => {
     if (amount === null) return "0"
     return amount.toLocaleString("ko-KR")
+  }
+
+  // 티켓 상태 변경
+  const handleUpdateStatus = async () => {
+    if (!selectedTask || !selectedStatus) {
+      setError("상태를 선택하세요.")
+      return
+    }
+
+    setSavingStatus(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const response = await fetch(`/api/tickets/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: selectedTask.id,
+          status: selectedStatus
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "상태 수정에 실패했습니다.")
+      }
+
+      setSuccess(result.message || "티켓 상태가 수정되었습니다.")
+
+      // 티켓 목록 새로고침
+      await loadTasks()
+      await loadDailySummary()
+
+      // 선택된 티켓 업데이트
+      if (selectedTask) {
+        setSelectedTask({
+          ...selectedTask,
+          status: selectedStatus,
+        })
+      }
+
+      setEditingStatus(false)
+
+      setTimeout(() => {
+        setSuccess(null)
+      }, 3000)
+    } catch (error: any) {
+      console.error("Error updating status:", error)
+      setError(error.message)
+    } finally {
+      setSavingStatus(false)
+    }
+  }
+
+  // 일괄 마감
+  const handleBatchClose = async () => {
+    if (selectedTaskIds.size === 0) {
+      setError("마감할 티켓을 선택하세요.")
+      return
+    }
+
+    const confirmed = confirm(`선택한 ${selectedTaskIds.size}개 티켓을 일괄 마감하시겠습니까?`)
+    if (!confirmed) return
+
+    setBatchClosing(true)
+    setError(null)
+    setSuccess(null)
+
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      for (const taskId of Array.from(selectedTaskIds)) {
+        try {
+          const response = await fetch("/api/tickets/status", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              task_id: taskId,
+              status: "closed",
+            }),
+          })
+
+          if (response.ok) {
+            successCount++
+          } else {
+            failCount++
+          }
+        } catch (error) {
+          failCount++
+        }
+      }
+
+      setSuccess(`일괄 마감 완료: 성공 ${successCount}건, 실패 ${failCount}건`)
+      setSelectedTaskIds(new Set())
+      await loadTasks()
+      await loadDailySummary()
+
+      setTimeout(() => {
+        setSuccess(null)
+      }, 5000)
+    } catch (error: any) {
+      console.error("Batch close error:", error)
+      setError("일괄 마감 중 오류가 발생했습니다.")
+    } finally {
+      setBatchClosing(false)
+    }
+  }
+
+  const toggleTaskSelection = (taskId: string) => {
+    const newSelected = new Set(selectedTaskIds)
+    if (newSelected.has(taskId)) {
+      newSelected.delete(taskId)
+    } else {
+      newSelected.add(taskId)
+    }
+    setSelectedTaskIds(newSelected)
+  }
+
+  const selectAllTasks = () => {
+    if (selectedTaskIds.size === tasks.length) {
+      setSelectedTaskIds(new Set())
+    } else {
+      setSelectedTaskIds(new Set(tasks.map(t => t.id)))
+    }
   }
 
   // 답변 저장
@@ -705,8 +841,34 @@ export default function ClosingClient() {
             {/* 티켓 리스트 카드 */}
             <Card className="border-gray-200 dark:border-gray-800 shadow-sm">
               <CardHeader>
-                <CardTitle>마감 대기 티켓</CardTitle>
-                <CardDescription>오늘 처리 완료된 티켓 목록 ({tasks.length}건)</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>마감 대기 티켓</CardTitle>
+                    <CardDescription>오늘 처리 완료된 티켓 목록 ({tasks.length}건)</CardDescription>
+                  </div>
+                  {tasks.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={selectAllTasks}
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                      >
+                        {selectedTaskIds.size === tasks.length ? "전체 해제" : "전체 선택"}
+                      </Button>
+                      {selectedTaskIds.size > 0 && (
+                        <Button
+                          onClick={handleBatchClose}
+                          disabled={batchClosing}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-xs"
+                        >
+                          {batchClosing ? "마감 중..." : `일괄 마감 (${selectedTaskIds.size})`}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardHeader>
             <CardContent>
               {tasks.length === 0 ? (
@@ -718,8 +880,7 @@ export default function ClosingClient() {
                   {tasks.map((task) => (
                     <Card
                       key={task.id}
-                      onClick={() => setSelectedTask(task)}
-                      className={`cursor-pointer hover:shadow-lg transition-all border-2 bg-white dark:bg-gray-900 ${
+                      className={`hover:shadow-lg transition-all border-2 bg-white dark:bg-gray-900 ${
                         selectedTask?.id === task.id
                           ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-700"
                           : "border-gray-200 dark:border-gray-800 hover:border-blue-400 dark:hover:border-blue-600"
@@ -727,6 +888,19 @@ export default function ClosingClient() {
                     >
                       <CardContent className="p-6">
                         <div className="space-y-3">
+                          {/* 체크박스 및 티켓 정보 */}
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedTaskIds.has(task.id)}
+                              onChange={(e) => {
+                                e.stopPropagation()
+                                toggleTaskSelection(task.id)
+                              }}
+                              className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <div className="flex-1 cursor-pointer" onClick={() => setSelectedTask(task)}>
+                              <div className="space-y-3">
                           {/* 첫 줄: 티켓 번호, 상태, 금액, 날짜 */}
                           <div className="flex flex-wrap items-center gap-3">
                             {/* 티켓 번호 */}
@@ -786,6 +960,8 @@ export default function ClosingClient() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -808,6 +984,83 @@ export default function ClosingClient() {
             <CardContent className="space-y-4">
               {selectedTask ? (
                 <>
+                  {/* 티켓 상태 변경 */}
+                  <div className="space-y-2">
+                    <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
+                      <Label className="text-sm font-bold text-gray-900 dark:text-gray-100">📌 티켓 상태</Label>
+                    </div>
+                    {editingStatus ? (
+                      <div className="flex items-center gap-2">
+                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="상태 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="received">접수</SelectItem>
+                            <SelectItem value="processing">처리중</SelectItem>
+                            <SelectItem value="processed">처리완료</SelectItem>
+                            <SelectItem value="closed">마감</SelectItem>
+                            <SelectItem value="cancelled">취소</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          onClick={handleUpdateStatus}
+                          disabled={savingStatus}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {savingStatus ? "저장 중..." : "저장"}
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setEditingStatus(false)
+                            setSelectedStatus(selectedTask.status || "")
+                          }}
+                          disabled={savingStatus}
+                          size="sm"
+                          variant="outline"
+                        >
+                          취소
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold ${
+                          selectedTask.status === "closed"
+                            ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                            : selectedTask.status === "processed"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                            : selectedTask.status === "processing"
+                            ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                            : selectedTask.status === "cancelled"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                            : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                        }`}>
+                          {selectedTask.status === "closed"
+                            ? "✅ 마감"
+                            : selectedTask.status === "processed"
+                            ? "✅ 처리완료"
+                            : selectedTask.status === "processing"
+                            ? "🔄 처리중"
+                            : selectedTask.status === "cancelled"
+                            ? "❌ 취소"
+                            : "📥 접수"}
+                        </span>
+                        <Button
+                          onClick={() => {
+                            setEditingStatus(true)
+                            setSelectedStatus(selectedTask.status || "")
+                          }}
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                        >
+                          수정
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* 처리 내역 요약 */}
                   <div className="space-y-2">
                     <div className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-md">
