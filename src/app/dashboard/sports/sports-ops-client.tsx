@@ -107,6 +107,18 @@ export default function SportsOpsClient() {
   const [filterMode, setFilterMode] = useState<"all" | "date" | "month">("all")
   const [showBetSlipDialog, setShowBetSlipDialog] = useState(false)
   const [betSlipGame, setBetSlipGame] = useState<Game | null>(null)
+  const [showAddGameDialog, setShowAddGameDialog] = useState(false)
+  const [addingGame, setAddingGame] = useState(false)
+  const [newGame, setNewGame] = useState({
+    home_team: "",
+    away_team: "",
+    game_date: "",
+    league: "기타",
+    home_odds: "",
+    draw_odds: "",
+    away_odds: "",
+    location: "",
+  })
 
   useEffect(() => {
     loadAllData()
@@ -202,6 +214,72 @@ export default function SportsOpsClient() {
       })
     } finally {
       setCrawling(false)
+    }
+  }
+
+  const handleAddGame = async () => {
+    // 필수 필드 검증
+    if (!newGame.home_team || !newGame.away_team || !newGame.game_date) {
+      toast({
+        title: "입력 오류",
+        description: "홈팀, 원정팀, 경기 일시는 필수입니다.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAddingGame(true)
+    try {
+      const response = await fetch("/api/sports/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          home_team: newGame.home_team.trim(),
+          away_team: newGame.away_team.trim(),
+          game_date: newGame.game_date,
+          league: newGame.league || "기타",
+          home_odds: newGame.home_odds ? parseFloat(newGame.home_odds) : null,
+          draw_odds: newGame.draw_odds ? parseFloat(newGame.draw_odds) : null,
+          away_odds: newGame.away_odds ? parseFloat(newGame.away_odds) : null,
+          location: newGame.location || null,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "✅ 경기 추가 완료",
+          description: `${newGame.home_team} vs ${newGame.away_team} 경기가 추가되었습니다.`,
+        })
+        setShowAddGameDialog(false)
+        setNewGame({
+          home_team: "",
+          away_team: "",
+          game_date: "",
+          league: "기타",
+          home_odds: "",
+          draw_odds: "",
+          away_odds: "",
+          location: "",
+        })
+        await loadAllData()
+      } else {
+        toast({
+          title: "경기 추가 실패",
+          description: data.error || "경기를 추가할 수 없습니다.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Add game error:", error)
+      toast({
+        title: "오류",
+        description: "경기 추가 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setAddingGame(false)
     }
   }
 
@@ -1108,6 +1186,19 @@ export default function SportsOpsClient() {
 
             <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
 
+            {/* 경기 수기 추가 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddGameDialog(true)}
+              className="border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20"
+            >
+              <Calendar className="w-4 h-4 mr-1" />
+              경기 추가
+            </Button>
+
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+
             {/* 크롤링 버튼 */}
             <Button
               variant="outline"
@@ -1757,6 +1848,166 @@ export default function SportsOpsClient() {
               >
                 <Camera className="w-4 h-4 mr-2" />
                 배팅 내역 생성
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 경기 추가 다이얼로그 */}
+        <Dialog open={showAddGameDialog} onOpenChange={setShowAddGameDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">⚽ 경기 수기 추가</DialogTitle>
+              <DialogDescription>
+                크롤링이 안 되는 경기를 직접 추가할 수 있습니다. 회원들이 배팅할 수 있는 경기 목록에 추가됩니다.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* 홈팀 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">
+                    홈팀 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="예: 맨체스터 유나이티드"
+                    value={newGame.home_team}
+                    onChange={(e) => setNewGame({ ...newGame, home_team: e.target.value })}
+                  />
+                </div>
+
+                {/* 원정팀 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">
+                    원정팀 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="예: 리버풀"
+                    value={newGame.away_team}
+                    onChange={(e) => setNewGame({ ...newGame, away_team: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* 경기 일시 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">
+                    경기 일시 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="datetime-local"
+                    value={newGame.game_date}
+                    onChange={(e) => setNewGame({ ...newGame, game_date: e.target.value })}
+                  />
+                </div>
+
+                {/* 리그 */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">리그</Label>
+                  <Select
+                    value={newGame.league}
+                    onValueChange={(v) => setNewGame({ ...newGame, league: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="기타">기타</SelectItem>
+                      <SelectItem value="KBO">⚾ KBO</SelectItem>
+                      <SelectItem value="K리그">⚽ K리그</SelectItem>
+                      <SelectItem value="KBL">🏀 KBL(남)</SelectItem>
+                      <SelectItem value="WKBL">🏀 WKBL(여)</SelectItem>
+                      <SelectItem value="V리그(남)">🏐 V리그(남)</SelectItem>
+                      <SelectItem value="V리그(여)">🏐 V리그(여)</SelectItem>
+                      <SelectItem value="MLB">⚾ MLB</SelectItem>
+                      <SelectItem value="NBA">🏀 NBA</SelectItem>
+                      <SelectItem value="EPL">⚽ EPL</SelectItem>
+                      <SelectItem value="라리가">⚽ 라리가</SelectItem>
+                      <SelectItem value="분데스리가">⚽ 분데스리가</SelectItem>
+                      <SelectItem value="세리에A">⚽ 세리에A</SelectItem>
+                      <SelectItem value="리그앙">⚽ 리그앙</SelectItem>
+                      <SelectItem value="NPB">⚾ NPB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* 배당률 (선택) */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">배당률 (선택사항)</Label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">홈승</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="예: 1.85"
+                      value={newGame.home_odds}
+                      onChange={(e) => setNewGame({ ...newGame, home_odds: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">무승부</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="예: 3.20"
+                      value={newGame.draw_odds}
+                      onChange={(e) => setNewGame({ ...newGame, draw_odds: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-gray-500">원정승</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="예: 2.10"
+                      value={newGame.away_odds}
+                      onChange={(e) => setNewGame({ ...newGame, away_odds: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 경기장 (선택) */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">경기장 (선택사항)</Label>
+                <Input
+                  placeholder="예: 올드 트래포드"
+                  value={newGame.location}
+                  onChange={(e) => setNewGame({ ...newGame, location: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddGameDialog(false)
+                  setNewGame({
+                    home_team: "",
+                    away_team: "",
+                    game_date: "",
+                    league: "기타",
+                    home_odds: "",
+                    draw_odds: "",
+                    away_odds: "",
+                    location: "",
+                  })
+                }}
+                disabled={addingGame}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleAddGame}
+                disabled={addingGame || !newGame.home_team || !newGame.away_team || !newGame.game_date}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {addingGame ? "추가 중..." : "경기 추가"}
               </Button>
             </DialogFooter>
           </DialogContent>

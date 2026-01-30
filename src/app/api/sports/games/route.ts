@@ -200,3 +200,76 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    // 인증 확인
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { home_team, away_team, game_date, league, home_odds, draw_odds, away_odds, location } = body
+
+    // 필수 필드 확인
+    if (!home_team || !away_team || !game_date) {
+      return NextResponse.json(
+        { error: "홈팀, 원정팀, 경기 일시는 필수입니다." },
+        { status: 400 }
+      )
+    }
+
+    // 경기 ID 자동 생성 (YYYYMMDD-HOMETEAM-AWAYTEAM 형식)
+    const dateStr = new Date(game_date).toISOString().slice(0, 10).replace(/-/g, "")
+    const homeShort = home_team.replace(/\s+/g, "").substring(0, 3).toUpperCase()
+    const awayShort = away_team.replace(/\s+/g, "").substring(0, 3).toUpperCase()
+    const game_id = `${dateStr}-${homeShort}-${awayShort}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+
+    // games 테이블에 삽입
+    const { data: game, error: insertError } = await supabase
+      .from("games")
+      .insert([
+        {
+          game_id: game_id,
+          home_team: home_team.trim(),
+          away_team: away_team.trim(),
+          game_date: game_date,
+          league: league || "기타",
+          location: location || null,
+          status: "scheduled", // 예정 상태
+          home_odds: home_odds || null,
+          draw_odds: draw_odds || null,
+          away_odds: away_odds || null,
+          created_by: user.id,
+        },
+      ])
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error("Error creating game:", insertError)
+      return NextResponse.json(
+        { error: "경기 추가에 실패했습니다.", details: insertError.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      game,
+      message: "경기가 성공적으로 추가되었습니다.",
+    })
+  } catch (error: any) {
+    console.error("Create game API error:", error)
+    return NextResponse.json(
+      { error: "서버 오류가 발생했습니다.", details: error.message },
+      { status: 500 }
+    )
+  }
+}
