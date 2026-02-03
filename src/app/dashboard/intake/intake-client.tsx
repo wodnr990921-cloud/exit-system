@@ -2211,6 +2211,7 @@ export default function IntakeClient() {
                     </div>
                   </div>
                 </div>
+              </div>
 
                 {/* 배팅 정보 (있는 경우) */}
                 {selectedTask.items && selectedTask.items.some(item => item.match_id) && (

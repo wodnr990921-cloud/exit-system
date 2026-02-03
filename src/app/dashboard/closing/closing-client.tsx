@@ -887,20 +887,19 @@ export default function ClosingClient() {
                       }`}
                     >
                       <CardContent className="p-6">
-                        <div className="space-y-3">
-                          {/* 체크박스 및 티켓 정보 */}
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedTaskIds.has(task.id)}
-                              onChange={(e) => {
-                                e.stopPropagation()
-                                toggleTaskSelection(task.id)
-                              }}
-                              className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <div className="flex-1 cursor-pointer" onClick={() => setSelectedTask(task)}>
-                              <div className="space-y-3">
+                        {/* 체크박스 및 티켓 정보 */}
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedTaskIds.has(task.id)}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              toggleTaskSelection(task.id)
+                            }}
+                            className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="flex-1 cursor-pointer" onClick={() => setSelectedTask(task)}>
+                            <div className="space-y-3">
                           {/* 첫 줄: 티켓 번호, 상태, 금액, 날짜 */}
                           <div className="flex flex-wrap items-center gap-3">
                             {/* 티켓 번호 */}
@@ -959,9 +958,9 @@ export default function ClosingClient() {
                               </div>
                             )}
                           </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
                       </CardContent>
                     </Card>
                   ))}
